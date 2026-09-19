@@ -43,7 +43,11 @@
     <button id="jumpBtn" type="button" aria-label="점프">점프</button>
   </div>
 
-  <div id="startScreen" class="overlay">
+  <div id="loadingOverlay" class="overlay loading-overlay" hidden>
+    <div class="loading-spinner" role="status" aria-label="불러오는 중"></div>
+  </div>
+
+  <div id="startScreen" class="overlay" hidden>
     <div class="card">
       <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
       <button class="primary" id="startBtn" type="button">시작하기</button>

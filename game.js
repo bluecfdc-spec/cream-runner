@@ -238,8 +238,10 @@
   var bgmQueue = [];
   var bgmQueueIdx = -1;
   var bgmAdvancing = false;
-  var bgmTitleEl = document.getElementById('bgmTitle');
   var bgmCdImgEl = document.getElementById('bgmCdImg');
+  var bgmTitleTrackEl = document.getElementById('bgmTitleTrack');
+  var bgmTitleCopyEls = document.querySelectorAll('.bgmTitleCopy');
+  var BGM_MARQUEE_SPEED = 45; // px/sec - constant scroll speed regardless of title length
   bgmEls.forEach(function(el){ if (el) el.volume = 0; });
 
   function bgmShuffle(list){
@@ -266,8 +268,29 @@
     }
     requestAnimationFrame(step);
   }
+  // ---- marquee title: two identical text copies inside a flex track (see #bgmTitleTrack/
+  // .bgmTitleCopy in style.css) - translateX(-50%) always travels exactly one copy's width,
+  // so the loop is seamless no matter how long the title is (never truncated). The scroll
+  // duration is recomputed per-track from the actual rendered text width so every title
+  // scrolls at the same constant speed instead of a fixed duration that would look too
+  // fast/slow depending on length.
   function bgmSetTitle(track){
-    if (bgmTitleEl) bgmTitleEl.textContent = track ? track.title : '';
+    var title = track ? track.title : '';
+    for (var i = 0; i < bgmTitleCopyEls.length; i++) bgmTitleCopyEls[i].textContent = title;
+    if (!bgmTitleTrackEl) return;
+    bgmTitleTrackEl.style.animation = 'none';
+    requestAnimationFrame(function(){
+      var copyEl = bgmTitleCopyEls[0];
+      var w = copyEl ? copyEl.offsetWidth : 0;
+      var dur = Math.max(4, w / BGM_MARQUEE_SPEED);
+      bgmTitleTrackEl.style.animation = 'bgmMarquee ' + dur + 's linear infinite';
+      bgmTitleTrackEl.style.animationPlayState = 'running';
+    });
+  }
+  function bgmSetSpinning(running){
+    var state = running ? 'running' : 'paused';
+    if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = state;
+    if (bgmTitleTrackEl) bgmTitleTrackEl.style.animationPlayState = state;
   }
   function bgmPlayTrack(track, opts){
     opts = opts || {};
@@ -286,7 +309,7 @@
       if (p && p.catch) p.catch(function(){});
     } catch (e) {}
     bgmSetTitle(track);
-    if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = 'running';
+    bgmSetSpinning(true);
     if (opts.instant) {
       if (curEl) { try { curEl.pause(); } catch (e) {} }
     } else if (curEl && !curEl.paused) {
@@ -338,7 +361,7 @@
   }
   function stopMusic(){
     bgmEls.forEach(function(el){ if (el) { try { el.pause(); } catch (e) {} } });
-    if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = 'paused';
+    bgmSetSpinning(false);
   }
 
   /* ---------------- game state & physics (all scaled to the 16:9 box) ---------------- */

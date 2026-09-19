@@ -1177,3 +1177,28 @@
     78%{  opacity:1; transform:translate(-50%,-100%) scale(1); }
     100%{ opacity:0; transform:translate(-50%,-120%) scale(.94); }
   }
+
+  /* ---- 점수 구간 돌파(1,000 / 5,000 / 10,000점) 축하 이미지: 플레이 화면 왼쪽 상단에서
+     "통! 하고 커졌다가 -> 잠깐 머물고 -> 살짝 떠오르며 사라지는" 1초짜리 순수 연출
+     (spawnMilestoneFx in game.js). 오빠!/엄마! 문구와 같은 effectsLayer 안에 있어서 절대
+     장애물이 아니고 충돌 판정과도 무관하다. 폭은 JS에서 지정하고 높이는 원본 비율(auto)이라
+     어떤 이미지 비율이든 찌그러지거나 잘리지 않는다. ---- */
+  .milestone-fx{
+    position:absolute;
+    pointer-events:none;
+    z-index:7;
+    filter:drop-shadow(0 4px 7px rgba(20,30,50,.4));
+    animation:milestonePop 1s ease-out forwards;
+  }
+  .milestone-fx img{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+  @keyframes milestonePop{
+    0%{   opacity:0; transform:scale(.55) rotate(-7deg); }
+    12%{  opacity:1; transform:scale(1.14) rotate(3deg); }
+    24%{  opacity:1; transform:scale(1) rotate(0deg); }
+    72%{  opacity:1; transform:scale(1) rotate(0deg); }
+    100%{ opacity:0; transform:scale(1.06) translateY(-14%); }
+  }

@@ -23,7 +23,7 @@
     <div id="invincibleHud" hidden>🛡 <span id="invincibleTime">5</span></div>
   </div>
   <div id="app">
-  <div id="sky"></div>
+  <div id="sky" style="background-image:url('assets/sky.jpg');"></div>
   <div id="ground"></div>
   <div id="obstacles"></div>
   <div id="character" class="run">
@@ -43,14 +43,7 @@
     <button id="jumpBtn" type="button" aria-label="점프">점프</button>
   </div>
 
-  <div id="loadingScreen" class="overlay">
-    <div class="card">
-      <h1>🐾 크림이 러너</h1>
-      <p class="hint" id="loadingStatus">불러오는 중... 0%</p>
-    </div>
-  </div>
-
-  <div id="startScreen" class="overlay" hidden>
+  <div id="startScreen" class="overlay">
     <div class="card">
       <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
       <button class="primary" id="startBtn" type="button">시작하기</button>
@@ -90,8 +83,8 @@
   </div>
 </div>
 
-<audio id="bgm-main" preload="auto"></audio>
-<audio id="bgm-loop" preload="auto"></audio>
+<audio id="bgm-main" preload="auto" src="main_bgm.mp4"></audio>
+<audio id="bgm-loop" preload="auto" src="loop.wav"></audio>
 <script src="game.js"></script>
 </body>
 </html>

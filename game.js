@@ -1,4 +1,4 @@
-(function(){
+ (function(){
   "use strict";
 
   var app = document.getElementById('app');
@@ -51,6 +51,53 @@
   var IMG_INVINCIBLE_CHAR = "assets/img_invincible_char.png";
   var IMG_CROW_UP = "assets/img_crow_up.png";
   var IMG_CROW_DOWN = "assets/img_crow_down.png";
+
+  // ---- 3-lives family recovery system: state 3 = 온가족(원본 트리오), 2 = 여자+강아지,
+  // 1 = 강아지 혼자. Run art for state 3 reuses the original IMG_RUN/IMG_JUMP; states 2/1
+  // use the CHAR_IMG_RUN_1/2 (run) and CHAR_IMG_JUMP_1/2/3 (jump) globals loaded from
+  // assets/char_run_*.js / assets/char_jump_*.js via <script> tags in index.html.
+  var ITEM_IMG_WOMAN = window.ITEM_IMG_WOMAN;
+  var ITEM_IMG_MAN = window.ITEM_IMG_MAN;
+  var CALL_IMG_OPPA = window.CALL_IMG_OPPA;
+  var CALL_IMG_MOM = window.CALL_IMG_MOM;
+
+  function runImgForState(st){
+    if (st >= 3) return IMG_RUN;
+    if (st === 2) return window.CHAR_IMG_RUN_2;
+    return window.CHAR_IMG_RUN_1;
+  }
+  function jumpImgForState(st){
+    if (st >= 3) return window.CHAR_IMG_JUMP_3 || IMG_JUMP;
+    if (st === 2) return window.CHAR_IMG_JUMP_2;
+    return window.CHAR_IMG_JUMP_1;
+  }
+
+  // per-life-state visual/hitbox tuning: as characters are lost, the sprite's visible
+  // "body mass" shrinks (fewer figures in the frame), so the running position is nudged
+  // back (left) to compensate and the hitbox narrows to match - the on-screen character
+  // BOX size itself never changes between states, only where it sits and how tight the
+  // hitbox is within it.
+  var LIFE_STATE_CFG = {
+    3: { offsetXFrac: 0,     hitFront: 0.72, hitRear: 0.40 },
+    2: { offsetXFrac: -0.05, hitFront: 0.66, hitRear: 0.42 },
+    1: { offsetXFrac: -0.10, hitFront: 0.60, hitRear: 0.45 }
+  };
+  var lifeState = 3;        // 3 = 온가족, 2 = 여자+강아지, 1 = 강아지 혼자
+  var charOffsetX = 0;
+  var hitInvuln = false;    // brief grace period right after a life-loss hit so the same
+                             // obstacle can't immediately cause a second hit next frame
+  var HIT_INVULN_DURATION = 1.0;
+  var hitInvulnTimer = 0;
+  var LIFE_RECOVERY_DELAY = 25; // seconds after the most recent life-loss before the
+                                  // recovery bonus for the missing family member appears
+  var BONUS_ITEM_H = 45;    // set for real in layout()
+  var bonusDueAt = null;    // gameTime value at which the next recovery bonus should spawn
+  var bonusSpawned = false; // true while a recovery bonus item is currently on screen
+
+  function applyCharTransform(){
+    character.style.transform = 'translate(' + charOffsetX.toFixed(1) + 'px,' + (-jumpY).toFixed(1) + 'px)';
+  }
+
   if (gameoverPic) gameoverPic.src = IMG_GAMEOVER;
   if (bannerImg) bannerImg.src = IMG_BANNER;
   if (startBannerImg) startBannerImg.src = IMG_START_BANNER;
@@ -602,11 +649,14 @@
     character.style.height = charH + 'px';
     character.style.left = charLeftPx + 'px';
     character.style.bottom = GROUND_H + 'px';
+    charOffsetX = (LIFE_STATE_CFG[lifeState] || LIFE_STATE_CFG[3]).offsetXFrac * charW;
+    applyCharTransform();
 
     ground.style.height = GROUND_H + 'px';
 
     OBST_POOP_H = appH * 0.10;
     STAR_H = appH * 0.195; // 50% bigger than the original 0.13 - easier to see and grab
+    BONUS_ITEM_H = appH * 0.185; // 여자/남자 복귀 보너스 아이템 - star와 비슷한 크기감
     STAR_ELEV_HIGH = charH + appH * 0.12;
     // pinned to a fixed fraction of appH (not charH) so shrinking the character doesn't
     // drag this up along with it - it needs to sit low enough to clearly overlap the
@@ -637,7 +687,7 @@
     // while invincible, the whole family+dog art takes over instead of the normal run/jump
     // frames - the run-loop keeps calling this on every landing, so it has to keep winning
     // out over jumping/not-jumping for the whole duration of the power-up.
-    charImg.src = invincible ? IMG_INVINCIBLE_CHAR : (jumping ? IMG_JUMP : IMG_RUN);
+    charImg.src = invincible ? IMG_INVINCIBLE_CHAR : (jumping ? jumpImgForState(lifeState) : runImgForState(lifeState));
   }
 
   function reset(){
@@ -659,12 +709,16 @@
     dodgeGauge = 0;
     invincible = false;
     invincibleTimer = 0;
+    lifeState = 3;
+    hitInvuln = false;
+    hitInvulnTimer = 0;
+    bonusDueAt = null;
+    bonusSpawned = false;
     character.classList.remove('invincible', 'invincible-warning');
     if (invincibleHud) invincibleHud.hidden = true;
     if (charCountdown) charCountdown.hidden = true;
     updateGaugeUI();
     character.classList.add('run');
-    character.style.transform = 'translateY(0)';
     setCharImage(false);
     scoreVal.textContent = '0';
     app.classList.remove('hit-shake');
@@ -816,6 +870,51 @@
     }, HIT_STOP_MS);
   }
 
+  var LIFE_LOSS_FLASH_MS = 260; // shorter than the full HIT_STOP_MS gameover freeze - the
+                                  // run keeps going, this is just a quick flash/shake beat
+  // called when a hit happens while more than one family member is still present: the
+  // family "demotes" one level (온가족 -> 여자+강아지 -> 강아지 혼자) instead of ending the
+  // run outright - only a hit while the dog is already alone (lifeState 1) triggers the
+  // real triggerHit()/endGame() game-over flow above.
+  function triggerLifeLoss(cx, cy){
+    if (state !== 'playing') return;
+    playHitSfx();
+    spawnImpactEffect(cx, cy);
+    app.classList.remove('hit-shake');
+    void app.offsetWidth;
+    app.classList.add('hit-shake');
+    if (hitFlashEl){
+      hitFlashEl.classList.remove('flash');
+      void hitFlashEl.offsetWidth;
+      hitFlashEl.classList.add('flash');
+    }
+    setTimeout(function(){
+      app.classList.remove('hit-shake');
+      if (hitFlashEl) hitFlashEl.classList.remove('flash');
+    }, LIFE_LOSS_FLASH_MS);
+
+    lifeState = Math.max(1, lifeState - 1);
+    charOffsetX = LIFE_STATE_CFG[lifeState].offsetXFrac * character.offsetWidth;
+    applyCharTransform();
+    setCharImage(isJumping);
+
+    // brief grace period so the same obstacle can't immediately cause a second hit
+    hitInvuln = true;
+    hitInvulnTimer = HIT_INVULN_DURATION;
+
+    // any bonus item already on screen was for whoever was lost BEFORE this hit - that
+    // target is now stale, so clear it and reschedule fresh from this collision (the
+    // "가장 최근 충돌로부터 25초 뒤" rule applies to every life-loss, not just the first).
+    for (var bi = obstacles.length - 1; bi >= 0; bi--){
+      if (obstacles[bi].type === 'bonus'){
+        obstacles[bi].el.remove();
+        obstacles.splice(bi, 1);
+      }
+    }
+    bonusSpawned = false;
+    bonusDueAt = gameTime + LIFE_RECOVERY_DELAY;
+  }
+
   function doJump(){
     if (state !== 'playing' || jumpsUsed >= MAX_JUMPS) return;
     jumpsUsed++;
@@ -956,6 +1055,56 @@
     obstaclesLayer.appendChild(el);
     obstacles.push({ el: el, x: x, w: sw, h: sh, elevation: elev, type: 'star' });
     lastSpawnType = 'star';
+  }
+
+  // recovery bonus item: floats in the air lane exactly like the treat-jar star (same
+  // bob/twinkle/pop-in visuals, reused via the 'obstacle star' CSS class) but carries the
+  // missing family member's art and, on pickup, restores them instead of just scoring.
+  function spawnBonusItemNow(target){
+    var rect = app.getBoundingClientRect();
+    var x = rect.width + 20;
+    var sh = BONUS_ITEM_H;
+    var sw = sh; // item_woman/item_man art sits on a square canvas
+    var elev = Math.random() < 0.5 ? STAR_ELEV_HIGH : STAR_ELEV_MID;
+    var el = document.createElement('div');
+    el.className = 'obstacle star';
+    el.style.left = x + 'px';
+    el.style.width = sw + 'px';
+    el.style.height = sh + 'px';
+    el.style.bottom = (GROUND_H + elev) + 'px';
+    var src = target === 'woman' ? ITEM_IMG_WOMAN : ITEM_IMG_MAN;
+    el.innerHTML =
+      '<div class="star-behind"></div>' +
+      '<img class="star-img" src="' + src + '" alt="">';
+    obstaclesLayer.appendChild(el);
+    obstacles.push({ el: el, x: x, w: sw, h: sh, elevation: elev, type: 'bonus', target: target });
+    lastSpawnType = 'bonus';
+    bonusSpawned = true;
+  }
+
+  // 오빠!/엄마! call message: a purely cosmetic pop-up above the current character's head,
+  // celebrating the reunion - never added to `obstacles`, so it can never be hit, block a
+  // jump, or factor into gameover/collision detection in any way.
+  function spawnCallMessageFx(target){
+    if (!effectsLayer) return;
+    var rect = app.getBoundingClientRect();
+    var appH = rect.height;
+    var w = appH * 0.26;
+    var h = w * 0.53; // matches the call-message banner art's ~260x137 aspect ratio
+    // "여자 보너스"(엄마 복귀, 강아지 혼자 -> 여자+강아지) -> 엄마! shown over the dog's head;
+    // "남자 보너스"(오빠 복귀, 여자+강아지 -> 온가족) -> 오빠! shown over the woman's head.
+    var src = target === 'woman' ? CALL_IMG_MOM : CALL_IMG_OPPA;
+    var cx = charLeftPx + charOffsetX + character.offsetWidth * 0.5;
+    var cy = groundTop - jumpY - character.offsetHeight * 0.92;
+    var el = document.createElement('div');
+    el.className = 'call-message-fx';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.innerHTML = '<img src="' + src + '" alt="" style="width:100%;height:100%;object-fit:contain;">';
+    effectsLayer.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 1600);
   }
 
   function spawnGroundObstacle(type, skipCombo, xOffset){
@@ -1110,7 +1259,7 @@
           character.classList.add('run');
           setCharImage(false);
         }
-        character.style.transform = 'translateY(' + (-jumpY) + 'px)';
+        applyCharTransform();
       }
 
       // paused while a crow's 2s warning is showing, so nothing else can spawn into that
@@ -1172,17 +1321,31 @@
         }
       }
 
+      if (hitInvuln){
+        hitInvulnTimer -= dt;
+        if (hitInvulnTimer <= 0){ hitInvuln = false; hitInvulnTimer = 0; }
+      }
+
+      // recovery bonus: appears exactly 25s after the most recent life-loss, targeting
+      // whichever family member is still missing (see triggerLifeLoss) - never both at
+      // once, since only one level is ever missing-and-pending at a time.
+      if (lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){
+        spawnBonusItemNow(lifeState === 1 ? 'woman' : 'man');
+      }
+
       // hitbox front edge (facing the direction of travel, where obstacles actually get jumped)
       // stays pinned at the same spot as before - only the REAR edge (behind, where the
       // trailing family member's back foot trails off) got pulled in further, so it's no
       // longer possible to get an "unfair-feeling" hit purely from that back foot overlapping
       // an obstacle that's already well behind where the front of the character is jumping.
-      var CHAR_HITBOX_FRONT = 0.72; // right edge of the hitbox, as a fraction of sprite width - unchanged
-      var CHAR_HITBOX_REAR = 0.40;  // left/rear edge - moved in from 0.30 to 0.40 for more back-side leeway
+      var lifeCfg = LIFE_STATE_CFG[lifeState] || LIFE_STATE_CFG[3];
+      var CHAR_HITBOX_FRONT = lifeCfg.hitFront; // right edge of the hitbox, as a fraction of
+                                                 // sprite width - narrows as lives are lost
+      var CHAR_HITBOX_REAR = lifeCfg.hitRear;   // left/rear edge - also narrows with lifeState
       var charW = character.offsetWidth * (CHAR_HITBOX_FRONT - CHAR_HITBOX_REAR);
       var charH = character.offsetHeight * 0.55; // a bit more forgiving now that the character
                                                   // reads visually smaller relative to obstacles
-      var charLeft = charLeftPx + character.offsetWidth * CHAR_HITBOX_REAR;
+      var charLeft = charLeftPx + charOffsetX + character.offsetWidth * CHAR_HITBOX_REAR;
       var charTop = groundTop - jumpY - charH;
 
       for (var i = obstacles.length - 1; i >= 0; i--){
@@ -1218,6 +1381,29 @@
           continue;
         }
 
+        // recovery bonus pickup: restores the missing family member one level at a time,
+        // shows the (purely cosmetic, non-collidable) 오빠!/엄마! call message, and
+        // reschedules the next recovery (if anyone is still missing) from right now.
+        if (overlapping && o.type === 'bonus'){
+          var recoveredTarget = o.target;
+          bonusSpawned = false;
+          bonusDueAt = null;
+          lifeState = Math.min(3, lifeState + 1);
+          charOffsetX = LIFE_STATE_CFG[lifeState].offsetXFrac * character.offsetWidth;
+          applyCharTransform();
+          setCharImage(isJumping);
+          score += 150;
+          spawnStarPopFx(o.x + o.w / 2, oTop + o.h / 2);
+          playPickupSfx();
+          spawnCallMessageFx(recoveredTarget);
+          o.el.remove();
+          obstacles.splice(i, 1);
+          if (lifeState < 3){
+            bonusDueAt = gameTime + LIFE_RECOVERY_DELAY;
+          }
+          continue;
+        }
+
         if (overlapping && invincible){
           // plow straight through instead of dying - the obstacle is the one that "dies"
           // here: it flies off spinning (randomized direction/spin) and fades out, instead
@@ -1232,12 +1418,25 @@
           continue;
         }
 
+        if (overlapping && hitInvuln){
+          // brief grace period right after a life-loss hit - a hazard passes through
+          // harmlessly instead of costing a second life a split-second later.
+          continue;
+        }
+
         if (overlapping){
           var ix1 = Math.max(charLeft, oLeft);
           var ix2 = Math.min(charLeft + charW, oLeft + oW);
           var iy1 = Math.max(charTop, oTop);
           var iy2 = Math.min(charTop + charH, oTop + o.h);
-          triggerHit((ix1 + ix2) / 2, (iy1 + iy2) / 2);
+          var hitCx = (ix1 + ix2) / 2, hitCy = (iy1 + iy2) / 2;
+          if (lifeState > 1){
+            triggerLifeLoss(hitCx, hitCy);
+            o.el.remove();
+            obstacles.splice(i, 1);
+            continue;
+          }
+          triggerHit(hitCx, hitCy);
           break;
         }
 
@@ -1245,7 +1444,7 @@
         // character while you were airborne over it. the air-lane star isn't a hazard
         // (it's handled separately above, the instant it's collected), so a missed star
         // just passes by with no penalty and no dodge reward.
-        if (!o.rewarded && o.type !== 'star' && (oLeft + oW) < charLeft){
+        if (!o.rewarded && o.type !== 'star' && o.type !== 'bonus' && (oLeft + oW) < charLeft){
           o.rewarded = true;
           if (isJumping){
             spawnNearMissEffect(o.x + o.w / 2, oTop - 14);
@@ -1256,6 +1455,10 @@
         }
 
         if (o.x + o.w < -20){
+          if (o.type === 'bonus'){
+            bonusSpawned = false;
+            if (lifeState < 3) bonusDueAt = gameTime + LIFE_RECOVERY_DELAY;
+          }
           o.el.remove();
           obstacles.splice(i, 1);
           obstaclesPassed++;

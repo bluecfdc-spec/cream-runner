@@ -679,6 +679,52 @@
   }
   #scoreBox span{color:var(--accent-deep);}
 
+  /* ---- BGM display: mirrors #hud but anchored to the opposite (bottom-right) corner of
+     #topSpace, sized ~80% of the scoreboard's font size per spec. Shows the currently
+     playing track's title (filename minus extension, from assets/bgm_manifest.js) next to
+     a small CD image that spins continuously while a track is playing (paused via JS
+     toggling animation-play-state on stopMusic/bgmPlayTrack in game.js). ---- */
+  #bgmHud{
+    position:absolute;
+    right:10px;
+    bottom:8px;
+    z-index:5;
+    max-width:56%;
+  }
+  #bgmBox{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    background:rgba(255,249,238,.9);
+    border:3px solid var(--panel-border);
+    border-radius:16px;
+    padding:5px 13px;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:700;
+    font-size:14.4px;
+    color:var(--ink);
+    box-shadow:0 3px 0 rgba(31,43,61,.12);
+  }
+  #bgmCdImg{
+    width:22px;
+    height:22px;
+    object-fit:contain;
+    flex:0 0 auto;
+    border-radius:50%;
+    animation:bgmSpin 3s linear infinite;
+    animation-play-state:paused;
+  }
+  @keyframes bgmSpin{
+    from{ transform:rotate(0deg); }
+    to{ transform:rotate(360deg); }
+  }
+  #bgmTitle{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0;
+  }
+
   /* ---- 개모차 gauge: fills from clean dodges, auto-triggers invincibility when full ----
      moved out of #hud (was covering the banner on mobile) - now a full-width bar flush
      against the top edge of #bottomSpace (right above the jump button), spanning the

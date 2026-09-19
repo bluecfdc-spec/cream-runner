@@ -20,6 +20,12 @@
     <div id="hud">
       <div id="scoreBox">점수 <span id="scoreVal">0</span></div>
     </div>
+    <div id="bgmHud">
+      <div id="bgmBox">
+        <img id="bgmCdImg" src="assets/bgm/cd.png" alt="">
+        <span id="bgmTitle">-</span>
+      </div>
+    </div>
     <div id="invincibleHud" hidden>🛡 <span id="invincibleTime">5</span></div>
   </div>
   <div id="app">
@@ -94,12 +100,15 @@
   </div>
 </div>
 
-<audio id="bgm-main" preload="auto" src="main_bgm.mp4"></audio>
-<audio id="bgm-loop" preload="auto" src="loop.wav"></audio>
+<audio id="bgm-a" preload="auto"></audio>
+<audio id="bgm-b" preload="auto"></audio>
 <!-- Firebase (Firestore) - powers the no-login leaderboard. Replaces the old Google Apps
      Script + Sheet backend, which was prone to silent deployment breakage. -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<!-- BGM v2 track list (open/random-middle/end + display titles) - edit this file only to
+     add/remove/swap songs later; must load before game.js. -->
+<script src="assets/bgm_manifest.js"></script>
 <!-- 3-lives family recovery system assets: run/jump art per life-state, woman/man recovery
      bonus item art, and the 오빠!/엄마! call-message overlay art. Loaded as plain-text .js
      files that set window.* globals (double-base64-encoding workaround for pushing binary

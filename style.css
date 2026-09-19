@@ -848,6 +848,16 @@
     margin-top:12px;
     color:var(--ink-soft);
   }
+  /* ---- small footer disclaimer under the jump hint: AI-made / non-profit notice, kept
+     visually quiet (smaller, lighter) so it doesn't compete with the actual gameplay
+     instructions above it. ---- */
+  .card .credit{
+    font-size:10.5px;
+    line-height:1.4;
+    margin-top:6px;
+    color:var(--ink-soft);
+    opacity:.75;
+  }
   .scoreline{
     display:flex;
     justify-content:center;

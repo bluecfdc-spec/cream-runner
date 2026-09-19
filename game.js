@@ -223,46 +223,122 @@
     playTone(sfxGain, 1568.0, t + 0.06, 0.14, 0.3, 'triangle');
   }
 
-  // ---- BGM: play the uploaded compilation once in full, then loop the wav file forever until game over ----
+  // ---- BGM v2: open_fix plays fixed at game start, then all tracks in assets/bgm_manifest.js
+  // (BGM_MIDDLE) play once each in random order, then end_fix loops forever. Two <audio>
+  // elements are alternated so every track change can crossfade (1.5s fade-out/fade-in)
+  // instead of cutting sharply. The track list itself lives entirely in bgm_manifest.js so
+  // adding/removing/swapping songs later - including swapping open_fix/end_fix - never
+  // needs touching this file. Everything here runs off audio "timeupdate"/"ended" events and
+  // a couple of short requestAnimationFrame fades, so it never touches the game loop and has
+  // zero effect on play time or performance.
   var BGM_VOLUME = 0.55;
-  var bgmMain = document.getElementById('bgm-main');
-  var bgmLoop = document.getElementById('bgm-loop');
-  if (bgmMain) bgmMain.volume = BGM_VOLUME;
-  if (bgmLoop){ bgmLoop.loop = true; bgmLoop.volume = BGM_VOLUME; }
-  // kick off buffering the (large) main BGM file immediately on page load, well before the
-  // player taps start - so play() at game-start is instant instead of waiting on the fetch.
-  if (bgmMain){ try { bgmMain.load(); } catch (e) {} }
+  var BGM_FADE_MS = 1500;
+  var bgmEls = [document.getElementById('bgm-a'), document.getElementById('bgm-b')];
+  var bgmActive = 0;
+  var bgmQueue = [];
+  var bgmQueueIdx = -1;
+  var bgmAdvancing = false;
+  var bgmTitleEl = document.getElementById('bgmTitle');
+  var bgmCdImgEl = document.getElementById('bgmCdImg');
+  bgmEls.forEach(function(el){ if (el) el.volume = 0; });
+
+  function bgmShuffle(list){
+    var a = list.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function bgmBuildQueue(){
+    var mid = (window.BGM_MIDDLE || []).slice();
+    bgmQueue = [window.BGM_OPEN].concat(bgmShuffle(mid));
+    bgmQueueIdx = -1;
+  }
+  function bgmFade(el, from, to, ms, done){
+    var start = null;
+    function step(ts){
+      if (!start) start = ts;
+      var p = Math.min(1, (ts - start) / ms);
+      el.volume = from + (to - from) * p;
+      if (p < 1) requestAnimationFrame(step);
+      else if (done) done();
+    }
+    requestAnimationFrame(step);
+  }
+  function bgmSetTitle(track){
+    if (bgmTitleEl) bgmTitleEl.textContent = track ? track.title : '';
+  }
+  function bgmPlayTrack(track, opts){
+    opts = opts || {};
+    if (!track) return;
+    var folder = window.BGM_FOLDER || '';
+    var nextIdx = 1 - bgmActive;
+    var curEl = bgmEls[bgmActive];
+    var nextEl = bgmEls[nextIdx];
+    if (!nextEl) return;
+    try {
+      nextEl.loop = !!opts.loop;
+      nextEl.src = folder + track.file;
+      nextEl.currentTime = 0;
+      nextEl.volume = opts.instant ? BGM_VOLUME : 0;
+      var p = nextEl.play();
+      if (p && p.catch) p.catch(function(){});
+    } catch (e) {}
+    bgmSetTitle(track);
+    if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = 'running';
+    if (opts.instant) {
+      if (curEl) { try { curEl.pause(); } catch (e) {} }
+    } else if (curEl && !curEl.paused) {
+      bgmFade(curEl, curEl.volume, 0, BGM_FADE_MS, function(){ try { curEl.pause(); } catch (e) {} });
+      bgmFade(nextEl, 0, BGM_VOLUME, BGM_FADE_MS);
+    } else {
+      nextEl.volume = BGM_VOLUME;
+    }
+    bgmActive = nextIdx;
+    bgmAdvancing = false;
+  }
+  function bgmAdvance(){
+    bgmQueueIdx++;
+    if (bgmQueueIdx === 0) {
+      bgmPlayTrack(bgmQueue[0], { instant: true });
+    } else if (bgmQueueIdx < bgmQueue.length) {
+      bgmPlayTrack(bgmQueue[bgmQueueIdx], {});
+    } else {
+      bgmPlayTrack(window.BGM_END, { loop: true });
+    }
+  }
+  function bgmCheckCrossfade(el){
+    if (!el || el.loop) return;
+    if (!el.duration || isNaN(el.duration)) return;
+    var remain = el.duration - el.currentTime;
+    if (remain <= BGM_FADE_MS / 1000 && !bgmAdvancing) {
+      bgmAdvancing = true;
+      bgmAdvance();
+    }
+  }
+  bgmEls.forEach(function(el){
+    if (!el) return;
+    el.addEventListener('timeupdate', function(){
+      if (bgmEls[bgmActive] === el) bgmCheckCrossfade(el);
+    });
+    el.addEventListener('ended', function(){
+      if (bgmEls[bgmActive] === el && !bgmAdvancing) {
+        bgmAdvancing = true;
+        bgmAdvance();
+      }
+    });
+  });
 
   function startMusic(){
     stopMusic();
-    if (!bgmMain) return;
-    try {
-      bgmMain.currentTime = 0;
-      var p = bgmMain.play();
-      if (p && p.catch) p.catch(function(){});
-    } catch (e) {}
-    // start buffering the loop track right away so it's fully ready by the time the
-    // compilation ends - avoids any audible gap/silence at the handoff
-    if (bgmLoop){
-      try {
-        bgmLoop.currentTime = 0;
-        bgmLoop.load();
-      } catch (e) {}
-    }
+    bgmBuildQueue();
+    bgmAdvancing = false;
+    bgmAdvance();
   }
   function stopMusic(){
-    if (bgmMain){ try { bgmMain.pause(); } catch (e) {} }
-    if (bgmLoop){ try { bgmLoop.pause(); } catch (e) {} }
-  }
-  if (bgmMain){
-    bgmMain.addEventListener('ended', function(){
-      if (state !== 'playing' || !bgmLoop) return;
-      try {
-        bgmLoop.currentTime = 0;
-        var p = bgmLoop.play();
-        if (p && p.catch) p.catch(function(){});
-      } catch (e) {}
-    });
+    bgmEls.forEach(function(el){ if (el) { try { el.pause(); } catch (e) {} } });
+    if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = 'paused';
   }
 
   /* ---------------- game state & physics (all scaled to the 16:9 box) ---------------- */

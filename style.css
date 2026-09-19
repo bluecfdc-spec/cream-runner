@@ -270,7 +270,9 @@
     filter:drop-shadow(0 3px 2px rgba(20,20,20,.35));
   }
   /* ---- star: air-lane bonus pickup - the "크림이네 트릿" jar (background removed), worth
-     +100 points, no longer a hazard, so it just needs to read clearly and feel rewarding. ---- */
+     +100 points, no longer a hazard, so it just needs to read clearly and feel rewarding.
+     Also reused (same class) for the woman/man family-recovery bonus items - see
+     spawnBonusItemNow in game.js. ---- */
   .obstacle.star{
     animation:starBob .55s ease-in-out infinite alternate, starSpawnPop .3s ease-out;
     filter:none;
@@ -1098,4 +1100,23 @@
   }
   @keyframes loadingSpin{
     to{ transform:rotate(360deg); }
+  }
+
+  /* ---- 오빠!/엄마! call message: a purely cosmetic pop-up above the character's head when
+     a recovery bonus is collected (see spawnCallMessageFx in game.js) - never an obstacle,
+     never collidable, just a celebratory effect. ---- */
+  .call-message-fx{
+    position:absolute;
+    pointer-events:none;
+    transform:translate(-50%,-100%);
+    z-index:7;
+    filter:drop-shadow(0 4px 6px rgba(20,20,20,.35));
+    animation:callMessagePop 1.6s ease-out forwards;
+  }
+  @keyframes callMessagePop{
+    0%{   opacity:0; transform:translate(-50%,-80%) scale(.5); }
+    12%{  opacity:1; transform:translate(-50%,-112%) scale(1.1); }
+    22%{  opacity:1; transform:translate(-50%,-100%) scale(1); }
+    78%{  opacity:1; transform:translate(-50%,-100%) scale(1); }
+    100%{ opacity:0; transform:translate(-50%,-120%) scale(.94); }
   }

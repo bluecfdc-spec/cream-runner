@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>크림이 러너</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <div id="topSpace" class="stage-space">
+    <div class="sun"></div>
+    <div class="cloud-wrap c1"><div class="pixel-cloud"></div></div>
+    <div class="cloud-wrap c2"><div class="pixel-cloud"></div></div>
+    <div class="cloud-wrap c3"><div class="pixel-cloud"></div></div>
+    <div class="sparkle s1"></div>
+    <div class="sparkle s2"></div>
+    <div class="sparkle s3"></div>
+    <div id="banner"><img id="bannerImg" alt="크림이네 산책하기"></div>
+    <div id="hud">
+      <div id="scoreBox">점수 <span id="scoreVal">0</span></div>
+    </div>
+    <div id="invincibleHud" hidden>🛡 <span id="invincibleTime">5</span></div>
+  </div>
+  <div id="app">
+  <div id="sky"></div>
+  <div id="ground"></div>
+  <div id="obstacles"></div>
+  <div id="character" class="run">
+    <img id="charImg" alt="크림이네 세 가족 캐릭터">
+    <div id="charCountdown" hidden><span id="charCountdownNum">5</span></div>
+  </div>
+  <div id="effectsLayer"></div>
+  <div id="crowWarning" hidden><div class="warn-tri"><span class="warn-mark">!</span></div></div>
+  <div id="hitFlash"></div>
+  </div>
+
+  <div id="bottomSpace" class="stage-space">
+    <div id="gaugeBarWrap">
+      <img id="gaugeIcon" alt="개모차">
+      <div id="gaugeTrack"><div id="gaugeFill"></div><img id="gaugeRider" alt=""></div>
+    </div>
+    <button id="jumpBtn" type="button" aria-label="점프">점프</button>
+  </div>
+
+  <div id="loadingScreen" class="overlay">
+    <div class="card">
+      <h1>🐾 크림이 러너</h1>
+      <p class="hint" id="loadingStatus">불러오는 중... 0%</p>
+    </div>
+  </div>
+
+  <div id="startScreen" class="overlay" hidden>
+    <div class="card">
+      <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
+      <button class="primary" id="startBtn" type="button">시작하기</button>
+      <div class="leaderboard" id="top3Board">
+        <div class="leaderboard-title">🏆 TOP 3</div>
+        <ol class="leaderboard-list" id="top3List"></ol>
+        <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
+      </div>
+      <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="overlay" hidden>
+    <div class="card">
+      <img id="gameoverPic" class="gameover-pic" alt="당황한 크림이네 가족">
+      <h2>크림아! 발 닦자!</h2>
+      <div class="scoreline single">
+        <div><span class="label">이번 점수</span><span class="value" id="finalScore">0</span></div>
+      </div>
+
+      <div class="leaderboard" id="top10Board">
+        <div class="leaderboard-title">🏆 TOP 10</div>
+        <ol class="leaderboard-list" id="top10List"></ol>
+        <div class="leaderboard-empty" id="top10Status">불러오는 중...</div>
+      </div>
+      <div class="new-record-box" id="newRecordBox" hidden>
+        <p class="new-record-label" id="newRecordLabel">🎉 TOP 10 진입! 이름을 남겨보세요.</p>
+        <div class="name-input-row">
+          <input type="text" id="nameInput" maxlength="8" placeholder="이름 입력">
+          <button class="primary small" id="submitNameBtn" type="button">등록</button>
+        </div>
+      </div>
+
+      <button class="primary" id="retryBtn" type="button">다시하기</button>
+      <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
+    </div>
+  </div>
+</div>
+
+<audio id="bgm-main" preload="auto"></audio>
+<audio id="bgm-loop" preload="auto"></audio>
+<script src="game.js"></script>
+</body>
+</html>

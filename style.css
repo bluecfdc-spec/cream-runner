@@ -1,0 +1,1024 @@
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root{
+    --sky-top:#eaf6ff;
+    --sky-bottom:#bfe4ff;
+    --panel:#fff9ee;
+    --panel-border:#f0dfb8;
+    --ink:#233047;
+    --ink-soft:#5a6a86;
+    --accent:#f0b429;
+    --accent-deep:#c8860f;
+    --accent-blue:#3d6fa8;
+    --line:#2a3550;
+    --stage-blank:#0e1626;
+    --psy-a:#ffe1a8;
+    --psy-b:#bfe3d0;
+    --cloud-color:#ffffff;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--stage-blank);
+    font-family:'Nunito',system-ui,sans-serif;
+    color:var(--ink);
+    overflow:hidden;
+    height:100%;
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:transparent;
+  }
+  html{height:100%;}
+
+  /* ---- kill mobile "text selection" artifacts: fast/repeated tapping (jump button
+     mashing, quick double-taps) can otherwise trigger the browser's native text-select
+     highlight (the gray drag-highlight band some players saw over the score/gauge) or a
+     long-press image callout menu. Disabled everywhere in the game UI except real text
+     inputs (the leaderboard name field), which still need normal select/typing. ---- */
+  #stage, #stage *{
+    -webkit-user-select:none;
+    -moz-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
+  }
+  #stage input, #stage textarea{
+    -webkit-user-select:text;
+    -moz-user-select:text;
+    user-select:text;
+    -webkit-touch-callout:default;
+  }
+  #stage img{
+    -webkit-user-drag:none;
+    user-drag:none;
+  }
+
+  #stage{
+    position:fixed;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    background:var(--stage-blank);
+    overflow:hidden;
+  }
+
+  .stage-space{
+    position:relative;
+    overflow:hidden;
+    width:100%;
+    flex:1 1 0;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  #topSpace{
+    background:linear-gradient(180deg,#dff1fb,#eef6e6);
+  }
+
+  .sun{
+    position:absolute;
+    top:14%;
+    right:13%;
+    width:15vmin;
+    height:15vmin;
+    min-width:34px;
+    min-height:34px;
+    max-width:60px;
+    max-height:60px;
+    background:radial-gradient(circle at 35% 30%, #fff6d8 0%, #ffd166 55%, #ef9f3c 100%);
+    clip-path:polygon(20% 0%,80% 0%,80% 10%,90% 10%,90% 20%,100% 20%,100% 80%,90% 80%,90% 90%,80% 90%,80% 100%,20% 100%,20% 90%,10% 90%,10% 80%,0% 80%,0% 20%,10% 20%,10% 10%,20% 10%);
+    animation:sunPulse 5s ease-in-out infinite;
+  }
+  @keyframes sunPulse{
+    0%,100%{ transform:scale(1) translateY(0); filter:brightness(1); }
+    50%{ transform:scale(1.08) translateY(-4%); filter:brightness(1.08); }
+  }
+
+  .cloud-wrap{
+    position:absolute;
+    animation-timing-function:linear;
+    animation-iteration-count:infinite;
+  }
+  .pixel-cloud{
+    width:4px; height:4px;
+    background:transparent;
+    box-shadow:
+      16px 0px 0 var(--cloud-color), 20px 0px 0 var(--cloud-color), 24px 0px 0 var(--cloud-color), 28px 0px 0 var(--cloud-color),
+      8px 4px 0 var(--cloud-color), 12px 4px 0 var(--cloud-color), 16px 4px 0 var(--cloud-color), 20px 4px 0 var(--cloud-color), 24px 4px 0 var(--cloud-color), 28px 4px 0 var(--cloud-color), 32px 4px 0 var(--cloud-color), 36px 4px 0 var(--cloud-color), 40px 4px 0 var(--cloud-color), 44px 4px 0 var(--cloud-color),
+      4px 8px 0 var(--cloud-color), 8px 8px 0 var(--cloud-color), 12px 8px 0 var(--cloud-color), 16px 8px 0 var(--cloud-color), 20px 8px 0 var(--cloud-color), 24px 8px 0 var(--cloud-color), 28px 8px 0 var(--cloud-color), 32px 8px 0 var(--cloud-color), 36px 8px 0 var(--cloud-color), 40px 8px 0 var(--cloud-color), 44px 8px 0 var(--cloud-color), 48px 8px 0 var(--cloud-color), 52px 8px 0 var(--cloud-color),
+      0px 12px 0 var(--cloud-color), 4px 12px 0 var(--cloud-color), 8px 12px 0 var(--cloud-color), 12px 12px 0 var(--cloud-color), 16px 12px 0 var(--cloud-color), 20px 12px 0 var(--cloud-color), 24px 12px 0 var(--cloud-color), 28px 12px 0 var(--cloud-color), 32px 12px 0 var(--cloud-color), 36px 12px 0 var(--cloud-color), 40px 12px 0 var(--cloud-color), 44px 12px 0 var(--cloud-color), 48px 12px 0 var(--cloud-color), 52px 12px 0 var(--cloud-color), 56px 12px 0 var(--cloud-color), 60px 12px 0 var(--cloud-color),
+      0px 16px 0 var(--cloud-color), 4px 16px 0 var(--cloud-color), 8px 16px 0 var(--cloud-color), 12px 16px 0 var(--cloud-color), 16px 16px 0 var(--cloud-color), 20px 16px 0 var(--cloud-color), 24px 16px 0 var(--cloud-color), 28px 16px 0 var(--cloud-color), 32px 16px 0 var(--cloud-color), 36px 16px 0 var(--cloud-color), 40px 16px 0 var(--cloud-color), 44px 16px 0 var(--cloud-color), 48px 16px 0 var(--cloud-color), 52px 16px 0 var(--cloud-color), 56px 16px 0 var(--cloud-color), 60px 16px 0 var(--cloud-color),
+      0px 20px 0 var(--cloud-color), 4px 20px 0 var(--cloud-color), 8px 20px 0 var(--cloud-color), 12px 20px 0 var(--cloud-color), 16px 20px 0 var(--cloud-color), 20px 20px 0 var(--cloud-color), 24px 20px 0 var(--cloud-color), 28px 20px 0 var(--cloud-color), 32px 20px 0 var(--cloud-color), 36px 20px 0 var(--cloud-color), 40px 20px 0 var(--cloud-color), 44px 20px 0 var(--cloud-color), 48px 20px 0 var(--cloud-color), 52px 20px 0 var(--cloud-color), 56px 20px 0 var(--cloud-color), 60px 20px 0 var(--cloud-color),
+      4px 24px 0 var(--cloud-color), 8px 24px 0 var(--cloud-color), 12px 24px 0 var(--cloud-color), 16px 24px 0 var(--cloud-color), 20px 24px 0 var(--cloud-color), 24px 24px 0 var(--cloud-color), 28px 24px 0 var(--cloud-color), 32px 24px 0 var(--cloud-color), 36px 24px 0 var(--cloud-color), 40px 24px 0 var(--cloud-color), 44px 24px 0 var(--cloud-color), 48px 24px 0 var(--cloud-color), 52px 24px 0 var(--cloud-color),
+      8px 28px 0 var(--cloud-color), 12px 28px 0 var(--cloud-color), 16px 28px 0 var(--cloud-color), 20px 28px 0 var(--cloud-color), 24px 28px 0 var(--cloud-color), 28px 28px 0 var(--cloud-color), 32px 28px 0 var(--cloud-color), 36px 28px 0 var(--cloud-color), 40px 28px 0 var(--cloud-color), 44px 28px 0 var(--cloud-color);
+    filter:drop-shadow(0 3px 0 rgba(90,120,155,.6));
+  }
+  .cloud-wrap.c1{ top:20%; animation-name:driftCloud; animation-duration:24s; }
+  .cloud-wrap.c2{ top:46%; animation-name:driftCloud; animation-duration:32s; animation-delay:-11s; }
+  .cloud-wrap.c3{ top:68%; animation-name:driftCloud; animation-duration:19s; animation-delay:-6s; }
+  .cloud-wrap.c1 .pixel-cloud{ transform:scale(1); opacity:.95; }
+  .cloud-wrap.c2 .pixel-cloud{ transform:scale(.68); opacity:.8; }
+  .cloud-wrap.c3 .pixel-cloud{ transform:scale(.52); opacity:.7; }
+  @keyframes driftCloud{
+    from{ left:-16%; }
+    to{ left:116%; }
+  }
+
+  .sparkle{
+    position:absolute;
+    width:5px; height:5px;
+    background:#fff8d8;
+    box-shadow:0 0 6px 2px rgba(255,244,200,.75);
+    border-radius:1px;
+    animation:twinkle 2.6s ease-in-out infinite;
+  }
+  .sparkle.s1{ top:32%; left:22%; animation-delay:0s; }
+  .sparkle.s2{ top:58%; left:74%; animation-delay:.9s; }
+  .sparkle.s3{ top:18%; left:52%; animation-delay:1.6s; }
+  @keyframes twinkle{
+    0%,100%{ opacity:.15; transform:scale(.6); }
+    50%{ opacity:1; transform:scale(1); }
+  }
+
+  #bottomSpace{
+    background:radial-gradient(circle at 50% 42%, var(--psy-a) 0%, var(--psy-b) 45%, var(--stage-blank) 78%);
+    background-size:220% 220%;
+    animation:psyDrift 12s ease-in-out infinite;
+  }
+  @keyframes psyDrift{
+    0%,100%{ background-position:34% 34%; }
+    50%{ background-position:66% 60%; }
+  }
+  #bottomSpace::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:radial-gradient(circle at 50% 44%, rgba(255,255,255,.75), rgba(255,255,255,0) 62%);
+    opacity:0;
+    transform:scale(.35);
+  }
+  #bottomSpace.burst::before{
+    animation:burstPulse .55s ease-out;
+  }
+  @keyframes burstPulse{
+    0%{ opacity:.95; transform:scale(.25); }
+    100%{ opacity:0; transform:scale(2); }
+  }
+  #bottomSpace::after{
+    content:"";
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:130px;
+    height:130px;
+    margin:-65px 0 0 -65px;
+    border-radius:50%;
+    border:4px solid var(--accent);
+    box-shadow:0 0 18px 2px rgba(240,180,41,.5);
+    opacity:0;
+    transform:scale(.25);
+    pointer-events:none;
+  }
+  #bottomSpace.burst::after{
+    animation:ringPulse .5s ease-out;
+  }
+  @keyframes ringPulse{
+    0%{ opacity:.9; transform:scale(.3); }
+    65%{ opacity:.4; }
+    100%{ opacity:0; transform:scale(2.3); }
+  }
+
+  #jumpBtn{
+    position:relative;
+    z-index:2;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:clamp(20px,6.5vw,28px);
+    color:#fff8ee;
+    letter-spacing:.05em;
+    background:linear-gradient(180deg,#ffd166,var(--accent-deep));
+    border:3px solid #8f5c07;
+    border-radius:28px;
+    padding:clamp(14px,4vh,20px) clamp(46px,16vw,72px);
+    box-shadow:0 8px 0 #7a4d06, 0 14px 22px rgba(0,0,0,.35);
+    cursor:pointer;
+    touch-action:manipulation;
+    user-select:none;
+    -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    transition:transform .045s ease, box-shadow .045s ease;
+  }
+  #jumpBtn.pressed{
+    transform:translateY(7px) scale(.97);
+    box-shadow:0 2px 0 #7a4d06, 0 4px 10px rgba(0,0,0,.3);
+  }
+
+  #app{
+    position:relative;
+    width:100%;
+    flex:0 0 auto;
+    aspect-ratio:16/9;
+    max-width:calc(100dvh * 16 / 9);
+    max-height:100dvh;
+    overflow:hidden;
+    background:linear-gradient(var(--sky-top), var(--sky-bottom));
+    touch-action:manipulation;
+    user-select:none;
+    -webkit-user-select:none;
+    box-shadow:0 10px 34px rgba(20,30,50,.35);
+  }
+
+  #sky{
+    position:absolute;
+    inset:0;
+    background-repeat:repeat-x;
+    background-position:0 bottom;
+    background-size:auto 100%;
+    filter:saturate(1.05);
+  }
+
+  #ground{
+    position:absolute;
+    left:0; right:0; bottom:0;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.55) 0 26px, transparent 26px 64px) bottom 40px / 300px 4px repeat-x,
+      linear-gradient(#8fc46a, #6ea852 55%, #4f8a3c);
+    border-top:4px solid #3f7530;
+    box-shadow:0 -6px 14px rgba(31,43,61,.15) inset;
+  }
+
+  #obstacles{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  .obstacle{
+    position:absolute;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    line-height:1;
+    filter:drop-shadow(0 3px 2px rgba(20,20,20,.35));
+  }
+  /* ---- star: air-lane bonus pickup - the "크림이네 트릿" jar (background removed), worth
+     +100 points, no longer a hazard, so it just needs to read clearly and feel rewarding. ---- */
+  .obstacle.star{
+    animation:starBob .55s ease-in-out infinite alternate, starSpawnPop .3s ease-out;
+    filter:none;
+  }
+  /* decorative gold star sitting behind the jar art - purely visual layering (no separate
+     pickup, no extra score), just makes the item read as more special. A thin hollow
+     outline (not a filled shape) so it reads as a subtle sparkle accent rather than a
+     solid blob. */
+  .obstacle.star .star-behind{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:206%;
+    height:206%;
+    transform:translate(-50%,-50%) rotate(0deg);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,3 61,35 98,35 68,57 79,91 50,70 21,91 32,57 2,35 39,35' fill='none' stroke='%23ffd166' stroke-width='3' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size:contain;
+    filter:drop-shadow(0 0 4px rgba(255,209,102,.85));
+    opacity:.85;
+    z-index:0;
+    animation:starBehindSpin 4s linear infinite, starBehindPulse 1s ease-in-out infinite;
+  }
+  .obstacle.star .star-img{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    filter:drop-shadow(0 0 8px rgba(255,209,102,.95)) drop-shadow(0 2px 2px rgba(20,20,20,.3));
+    animation:starTwinkle 1s ease-in-out infinite;
+    z-index:1;
+  }
+  @keyframes starBob{
+    from{ transform:translateY(0) rotate(-8deg); }
+    to{ transform:translateY(-9px) rotate(8deg); }
+  }
+  @keyframes starTwinkle{
+    0%,100%{ transform:scale(1); opacity:1; }
+    50%{ transform:scale(1.18); opacity:.85; }
+  }
+  @keyframes starBehindSpin{
+    from{ transform:translate(-50%,-50%) rotate(0deg); }
+    to{ transform:translate(-50%,-50%) rotate(360deg); }
+  }
+  @keyframes starBehindPulse{
+    0%,100%{ opacity:.7; }
+    50%{ opacity:.95; }
+  }
+  @keyframes starSpawnPop{
+    0%{ transform:scale(.25); opacity:0; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  /* short celebratory burst where a star was collected */
+  .star-pop-fx{
+    position:absolute;
+    pointer-events:none;
+    font-size:22px;
+    font-weight:800;
+    font-family:'Baloo 2',sans-serif;
+    color:#ffd166;
+    text-shadow:0 0 6px #fff, 0 2px 3px rgba(20,20,20,.4);
+    transform:translate(-50%,-50%);
+    animation:starPopFx .55s ease-out forwards;
+    z-index:7;
+  }
+  @keyframes starPopFx{
+    0%{ opacity:1; transform:translate(-50%,-50%) scale(.6); }
+    40%{ opacity:1; transform:translate(-50%,-70%) scale(1.15); }
+    100%{ opacity:0; transform:translate(-50%,-120%) scale(1); }
+  }
+  /* ---- "+50" popup for KO'ing an obstacle during invincibility - neon-colored (pink/
+     green/orange, randomized per hit) instead of the star item's gold, so it reads as a
+     distinct, punchier combat bonus rather than a pickup. Slightly translucent glowing
+     fill plus a layered glow makes it read as neon light rather than flat color, and a
+     bigger rotation swing on the way up gives the number some spinning impact. ---- */
+  .ko-pop-fx{
+    position:absolute;
+    pointer-events:none;
+    font-size:24px;
+    font-weight:800;
+    font-family:'Baloo 2',sans-serif;
+    transform:translate(-50%,-50%);
+    animation:koPopFx .6s cubic-bezier(.2,.75,.3,1) forwards;
+    z-index:7;
+  }
+  .ko-pop-fx.c-pink{
+    color:rgba(255,94,190,.88);
+    text-shadow:0 0 4px rgba(255,255,255,.85), 0 0 14px rgba(255,62,165,1), 0 0 28px rgba(255,62,165,.85), 0 0 46px rgba(255,62,165,.55);
+  }
+  .ko-pop-fx.c-green{
+    color:rgba(94,255,164,.88);
+    text-shadow:0 0 4px rgba(255,255,255,.85), 0 0 14px rgba(57,255,138,1), 0 0 28px rgba(57,255,138,.85), 0 0 46px rgba(57,255,138,.55);
+  }
+  .ko-pop-fx.c-orange{
+    color:rgba(255,172,94,.88);
+    text-shadow:0 0 4px rgba(255,255,255,.85), 0 0 14px rgba(255,138,30,1), 0 0 28px rgba(255,138,30,.85), 0 0 46px rgba(255,138,30,.55);
+  }
+  @keyframes koPopFx{
+    0%{   opacity:0; transform:translate(-50%,-50%) scale(.4) rotate(-25deg); }
+    15%{  opacity:1; transform:translate(-50%,-62%) scale(1.3) rotate(16deg); }
+    42%{  opacity:1; transform:translate(-50%,-88%) scale(1.05) rotate(-9deg); }
+    72%{  opacity:1; transform:translate(-50%,-112%) scale(1.1) rotate(5deg); }
+    100%{ opacity:0; transform:translate(-50%,-148%) scale(.92) rotate(0deg); }
+  }
+  /* ---- crow: a REAL hazard again, mixed in with the normal ground obstacles (poop/dog) via
+     pickObstacleType/spawnGroundObstacle, so its horizontal spacing/timing is exactly the
+     same safe-gap system as everything else - the actual hitbox always sits at ground level
+     (elevation 0), so it's cleared with the exact same single jump as a poop/dog, and there's
+     never a "must jump AND must not jump" conflict. What makes it feel different is purely
+     visual: the loop() sets a per-frame translateY "lift" on top of the fixed hitbox, tallest
+     right after it spawns (upper-right sky) and right before it leaves (swoops back up and
+     off), dipping to zero exactly when it's at the character's x position - a swooping U-curve
+     dive that still only ever needs to be jumped at ground level. A 2-second blinking warning
+     fires the moment it's chosen to spawn, and the actual obstacle/dive only starts once that
+     warning finishes (see the 'crow' branch in loop()'s spawn trigger). ---- */
+  .obstacle.crow{
+    filter:none;
+  }
+  .obstacle.crow .crow-frame{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,.35));
+  }
+  .obstacle.crow .crow-frame-up{
+    animation:crowFlapA .22s steps(1,end) infinite;
+  }
+  .obstacle.crow .crow-frame-down{
+    animation:crowFlapB .22s steps(1,end) infinite;
+  }
+  @keyframes crowFlapA{ 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
+  @keyframes crowFlapB{ 0%,49%{ opacity:0; } 50%,100%{ opacity:1; } }
+  #crowWarning{
+    position:absolute;
+    top:7%;
+    right:4%;
+    z-index:8;
+    opacity:.8;
+    animation:crowWarnBlink .32s ease-in-out infinite alternate;
+    pointer-events:none;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));
+  }
+  @keyframes crowWarnBlink{
+    from{ opacity:.55; transform:scale(.96); }
+    to{   opacity:.85; transform:scale(1.04); }
+  }
+  .warn-tri{
+    position:relative;
+    width:clamp(42px,11.9vw,61px);
+    height:clamp(37px,10.6vw,54px);
+    background:#e2725a;
+    clip-path:polygon(50% 0%, 0% 100%, 100% 100%);
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .warn-tri::before{
+    content:"";
+    position:absolute;
+    top:13%; left:13%; right:13%; bottom:6%;
+    background:linear-gradient(180deg,#ffe6a3,#ffc247);
+    clip-path:polygon(50% 0%, 0% 100%, 100% 100%);
+  }
+  .warn-mark{
+    position:relative;
+    z-index:1;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:clamp(19px,5.4vw,27px);
+    color:#c8672f;
+    line-height:1;
+    margin-bottom:6%;
+  }
+  .obstacle.poop .poop-img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+  }
+  .obstacle.dog{
+    filter:none;
+  }
+  .obstacle.dog .dog-frame{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    filter:drop-shadow(0 3px 2px rgba(20,20,20,.35));
+  }
+  .obstacle.dog .frame-a{
+    animation:dogFrameA .28s steps(1,end) infinite;
+  }
+  .obstacle.dog .frame-b{
+    animation:dogFrameB .28s steps(1,end) infinite;
+  }
+  @keyframes dogFrameA{
+    0%,49%{ opacity:1; }
+    50%,100%{ opacity:0; }
+  }
+  @keyframes dogFrameB{
+    0%,49%{ opacity:0; }
+    50%,100%{ opacity:1; }
+  }
+
+  #character{
+    position:absolute;
+    transform:translateY(0);
+    will-change:transform;
+  }
+  #character img{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    object-position:bottom;
+    filter:drop-shadow(0 6px 4px rgba(20,30,50,.28));
+  }
+  #character.run img{
+    animation:bob .32s ease-in-out infinite alternate;
+  }
+  @keyframes bob{
+    from{ transform:translateY(0) rotate(-1deg); }
+    to{ transform:translateY(-7px) rotate(1deg); }
+  }
+
+  /* ---- 개모차 invincibility: character glow while active, faster blink near the end ---- */
+  #character.invincible img{
+    filter:drop-shadow(0 0 4px #fff) drop-shadow(0 0 14px rgba(255,209,102,.95)) drop-shadow(0 0 22px rgba(255,209,102,.7));
+    animation:bob .32s ease-in-out infinite alternate, invincibleGlow .5s ease-in-out infinite alternate;
+  }
+  #character.invincible.invincible-warning img{
+    animation:bob .32s ease-in-out infinite alternate, invincibleGlow .18s ease-in-out infinite alternate;
+  }
+  @keyframes invincibleGlow{
+    from{ opacity:1; }
+    to{ opacity:.55; }
+  }
+
+  /* ---- countdown shown just ahead of the character (forward/right, not overlapping it)
+     while invincible is active, inside a glowing gold ring ---- */
+  #charCountdown{
+    position:absolute;
+    left:98%;
+    top:2%;
+    z-index:7;
+    width:clamp(36px,11vw,52px);
+    height:clamp(36px,11vw,52px);
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(circle at 35% 30%, #fff6d8 0%, #ffd166 55%, #c8860f 100%);
+    border:2px solid #fff;
+    animation:charCountdownRing .5s ease-in-out infinite alternate;
+    pointer-events:none;
+  }
+  #charCountdownNum{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:clamp(17px,5.2vw,25px);
+    color:#fff8ee;
+    text-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  @keyframes charCountdownRing{
+    from{ box-shadow:0 0 10px 3px rgba(255,209,102,.85), 0 0 20px 7px rgba(255,180,60,.55); transform:scale(1); }
+    to{   box-shadow:0 0 16px 6px rgba(255,209,102,1), 0 0 32px 12px rgba(255,180,60,.85); transform:scale(1.1); }
+  }
+
+  /* ---- obstacle KO: while invincible, plowing through an obstacle sends IT flying off and
+     spinning away (fading out) instead of just vanishing instantly. Direction/spin are
+     randomized per-hit via --dx/--dy/--spin custom properties set from JS (see
+     removeAfterKO's caller), so every KO flings a different way (left/right, up/down) and
+     spins fast, instead of always the same single fixed-direction pop. ---- */
+  .obstacle.obstacle-ko{
+    animation:obstacleFlyOff 0.55s cubic-bezier(.15,.7,.3,1) forwards;
+    pointer-events:none;
+    --dx:0px; --dy:-170px; --spin:720deg;
+  }
+  @keyframes obstacleFlyOff{
+    0%{   transform:translate(0,0) rotate(0deg) scale(1); opacity:1; }
+    22%{  transform:translate(calc(var(--dx) * .3),calc(var(--dy) * .28)) rotate(calc(var(--spin) * .45)) scale(1.25); opacity:1; }
+    100%{ transform:translate(var(--dx),var(--dy)) rotate(var(--spin)) scale(.35); opacity:0; }
+  }
+
+  /* ---- gauge fills up flash when it tops out and the power-up auto-activates ---- */
+  #app.gauge-burst{
+    animation:gaugeBurstFlash .4s ease-out;
+  }
+  @keyframes gaugeBurstFlash{
+    0%{ box-shadow:0 10px 34px rgba(20,30,50,.35), inset 0 0 40px 10px rgba(255,209,102,.9); }
+    100%{ box-shadow:0 10px 34px rgba(20,30,50,.35), inset 0 0 0 0 rgba(255,209,102,0); }
+  }
+
+  /* ---- impact feedback: exact-contact spark, screen flash, screen shake ---- */
+  #effectsLayer{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:8;
+    overflow:hidden;
+  }
+  .impact-burst{
+    position:absolute;
+    width:56px;
+    height:56px;
+    margin:-28px 0 0 -28px;
+    pointer-events:none;
+  }
+  .impact-burst::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(255,70,40,.9) 45%, rgba(255,70,40,0) 75%);
+    animation:impactFlashPop .38s ease-out forwards;
+  }
+  .impact-burst::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    border:3px solid #fff;
+    opacity:.9;
+    animation:impactRingPop .42s ease-out forwards;
+  }
+  @keyframes impactFlashPop{
+    0%{ opacity:1; transform:scale(.3); }
+    100%{ opacity:0; transform:scale(1.5); }
+  }
+  @keyframes impactRingPop{
+    0%{ opacity:.9; transform:scale(.2); }
+    100%{ opacity:0; transform:scale(2.4); }
+  }
+  .near-miss-spark{
+    position:absolute;
+    width:34px;
+    height:34px;
+    margin:-17px 0 0 -17px;
+    pointer-events:none;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:20px;
+    color:#ffd166;
+    text-shadow:0 0 6px #fff, 0 0 10px rgba(255,209,102,.9);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    animation:nearMissPop .55s ease-out forwards;
+  }
+  @keyframes nearMissPop{
+    0%{ opacity:0; transform:translateY(0) scale(.6); }
+    25%{ opacity:1; transform:translateY(-6px) scale(1.15); }
+    100%{ opacity:0; transform:translateY(-30px) scale(1); }
+  }
+  #hitFlash{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    z-index:9;
+    background:rgba(255,60,40,.55);
+    opacity:0;
+  }
+  #hitFlash.flash{
+    animation:hitFlashFade .42s ease-out;
+  }
+  @keyframes hitFlashFade{
+    0%{ opacity:.85; }
+    100%{ opacity:0; }
+  }
+  #app.hit-shake{
+    animation:hitShake .35s ease-out;
+  }
+  @keyframes hitShake{
+    0%{ transform:translate(0,0); }
+    20%{ transform:translate(-6px,4px); }
+    40%{ transform:translate(5px,-5px); }
+    60%{ transform:translate(-4px,3px); }
+    80%{ transform:translate(3px,-2px); }
+    100%{ transform:translate(0,0); }
+  }
+
+  #hud{
+    position:absolute;
+    left:10px;
+    bottom:8px;
+    z-index:5;
+  }
+  #scoreBox{
+    background:rgba(255,249,238,.9);
+    border:3px solid var(--panel-border);
+    border-radius:16px;
+    padding:7px 16px;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:700;
+    font-size:18px;
+    color:var(--ink);
+    font-variant-numeric:tabular-nums;
+    box-shadow:0 3px 0 rgba(31,43,61,.12);
+  }
+  #scoreBox span{color:var(--accent-deep);}
+
+  /* ---- 개모차 gauge: fills from clean dodges, auto-triggers invincibility when full ----
+     moved out of #hud (was covering the banner on mobile) - now a full-width bar flush
+     against the top edge of #bottomSpace (right above the jump button), spanning the
+     screen width so it stays clearly visible without crowding the score/banner area. */
+  #gaugeBarWrap{
+    position:absolute;
+    top:8px;
+    left:10px;
+    right:10px;
+    z-index:4;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    background:rgba(255,249,238,.88);
+    border:2px solid var(--panel-border);
+    border-radius:16px;
+    padding:6px 12px;
+    box-shadow:0 2px 0 rgba(31,43,61,.12);
+  }
+  #gaugeIcon{
+    width:34px;
+    height:34px;
+    object-fit:contain;
+    flex:0 0 auto;
+    filter:drop-shadow(0 0 4px rgba(255,209,102,.9));
+  }
+  #gaugeTrack{
+    position:relative;
+    flex:1 1 auto;
+    width:auto;
+    height:16px;
+    border-radius:8px;
+    background:rgba(90,106,134,.18);
+    overflow:visible;
+  }
+  #gaugeFill{
+    position:relative;
+    height:100%;
+    width:0%;
+    border-radius:6px;
+    background:linear-gradient(90deg,#ffd166,var(--accent-deep));
+    transition:width .18s ease-out;
+    overflow:hidden;
+  }
+  #gaugeFill.full{
+    animation:gaugeFillPulse .3s ease-in-out infinite alternate;
+  }
+  @keyframes gaugeFillPulse{
+    from{ filter:brightness(1); }
+    to{ filter:brightness(1.3); }
+  }
+  /* ---- rider that "drives" along the leading edge of the gauge fill: the family +
+     stroller art, scaled to sit right on top of the bar and wobbling as it goes, so filling
+     the gauge visually reads as them moving along together instead of a flat bar filling
+     up. Positioned via JS (left:%, matches the fill's own width) on #gaugeTrack, which is
+     why #gaugeTrack needs overflow:visible now (it can poke slightly above/below the bar). */
+  #gaugeRider{
+    position:absolute;
+    top:50%;
+    left:0%;
+    width:39px;
+    height:39px;
+    object-fit:contain;
+    transform:translate(-50%,-50%) rotate(-6deg);
+    transition:left .18s ease-out;
+    pointer-events:none;
+    filter:drop-shadow(0 2px 2px rgba(20,20,20,.4));
+    animation:gaugeRiderWobble .38s ease-in-out infinite alternate;
+    z-index:2;
+  }
+  #gaugeRider[hidden]{ display:none; }
+  @keyframes gaugeRiderWobble{
+    from{ transform:translate(-50%,-50%) rotate(-7deg) translateY(0); }
+    to{   transform:translate(-50%,-50%) rotate(7deg) translateY(-2px); }
+  }
+
+  #invincibleHud{
+    position:absolute;
+    top:8px;
+    right:10px;
+    z-index:6;
+    background:linear-gradient(180deg,#fff3cf,#ffd166);
+    border:2px solid #fff;
+    border-radius:14px;
+    padding:5px 12px;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:15px;
+    color:#8a5a08;
+    box-shadow:0 3px 0 rgba(200,134,15,.4), 0 0 14px rgba(255,209,102,.85);
+  }
+
+  #banner{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    z-index:5;
+    pointer-events:none;
+  }
+  #bannerImg{
+    display:block;
+    height:clamp(84px,30vw,168px);
+    width:auto;
+    object-fit:contain;
+    filter:drop-shadow(0 4px 8px rgba(20,30,50,.3));
+  }
+
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(30,40,60,.28);
+    z-index:10;
+    padding:16px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  }
+  .card{
+    background:var(--panel);
+    border:3px solid var(--panel-border);
+    border-radius:22px;
+    padding:28px 26px 24px;
+    text-align:center;
+    max-width:340px;
+    width:100%;
+    box-shadow:0 10px 0 rgba(31,43,61,.18), 0 16px 30px rgba(31,43,61,.25);
+  }
+  .card h1{
+    font-family:'Baloo 2',sans-serif;
+    font-size:clamp(24px,7vw,30px);
+    margin:0 0 6px;
+    color:var(--ink);
+    text-wrap:balance;
+  }
+  .card h1 .paw{color:var(--accent-deep);}
+  .start-banner-pic{
+    display:block;
+    width:100%;
+    max-width:288px;
+    height:auto;
+    margin:-4px auto 14px;
+    border-radius:16px;
+    box-shadow:0 6px 0 rgba(31,43,61,.14), 0 10px 20px rgba(31,43,61,.22);
+  }
+  .gameover-pic{
+    display:block;
+    width:112px;
+    height:112px;
+    object-fit:contain;
+    margin:-6px auto 4px;
+    filter:drop-shadow(0 6px 8px rgba(20,30,50,.3));
+  }
+  .card h2{
+    font-family:'Baloo 2',sans-serif;
+    font-size:26px;
+    margin:0 0 10px;
+    color:var(--ink);
+  }
+  .card p{
+    margin:0 0 4px;
+    color:var(--ink-soft);
+    font-size:14.5px;
+    line-height:1.5;
+  }
+  .card .hint{
+    font-size:12.5px;
+    margin-top:12px;
+    color:var(--ink-soft);
+  }
+  .scoreline{
+    display:flex;
+    justify-content:center;
+    gap:18px;
+    margin:14px 0 18px;
+    font-family:'Baloo 2',sans-serif;
+  }
+  .scoreline div{
+    background:#fff;
+    border:2px solid var(--panel-border);
+    border-radius:12px;
+    padding:8px 14px;
+    min-width:84px;
+  }
+  .scoreline .label{
+    display:block;
+    font-family:'Nunito',sans-serif;
+    font-size:11px;
+    color:var(--ink-soft);
+    font-weight:700;
+    letter-spacing:.03em;
+  }
+  .scoreline .value{
+    font-size:22px;
+    font-weight:700;
+    color:var(--accent-deep);
+    font-variant-numeric:tabular-nums;
+  }
+  button.primary{
+    font-family:'Baloo 2',sans-serif;
+    font-size:17px;
+    font-weight:700;
+    color:#fff;
+    background:linear-gradient(180deg,#4c86c7,var(--accent-blue));
+    border:none;
+    border-radius:14px;
+    padding:12px 30px;
+    cursor:pointer;
+    box-shadow:0 5px 0 #274a72;
+  }
+  button.primary:active{
+    transform:translateY(4px);
+    box-shadow:0 1px 0 #274a72;
+  }
+  button.primary.small{
+    font-size:14px;
+    padding:9px 16px;
+    border-radius:12px;
+    box-shadow:0 4px 0 #274a72;
+    white-space:nowrap;
+  }
+  button.primary.small:active{
+    transform:translateY(3px);
+    box-shadow:0 1px 0 #274a72;
+  }
+  .scoreline.single{ margin:10px 0 14px; }
+  a.leaderboard-btn{
+    display:block;
+    text-decoration:none;
+    margin:0 0 14px;
+    font-family:'Baloo 2',sans-serif;
+    font-size:15px;
+    font-weight:700;
+    color:#fff;
+    background:linear-gradient(180deg,#ffcf6b,var(--accent-deep));
+    border-radius:14px;
+    padding:11px 16px;
+    box-shadow:0 5px 0 #a15d0e;
+  }
+  a.leaderboard-btn:active{
+    transform:translateY(4px);
+    box-shadow:0 1px 0 #a15d0e;
+  }
+  a.leaderboard-btn.small{
+    margin:10px 0 0;
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:12px;
+    box-shadow:0 4px 0 #a15d0e;
+  }
+  a.leaderboard-btn.small:active{
+    transform:translateY(3px);
+    box-shadow:0 1px 0 #a15d0e;
+  }
+  .new-record-box{
+    background:#fff8e6;
+    border:2px dashed var(--accent-deep);
+    border-radius:14px;
+    padding:10px 12px;
+    margin:0 0 14px;
+  }
+  .new-record-label{
+    margin:0 0 8px;
+    font-family:'Baloo 2',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:var(--accent-deep);
+  }
+  .name-input-row{
+    display:flex;
+    gap:6px;
+  }
+  .name-input-row input{
+    flex:1 1 auto;
+    min-width:0;
+    font-family:'Nunito',sans-serif;
+    font-size:14px;
+    padding:9px 10px;
+    border:2px solid var(--panel-border);
+    border-radius:10px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .name-input-row input:focus{ outline:2px solid var(--accent-blue); }
+  .leaderboard{
+    background:#fff;
+    border:2px solid var(--panel-border);
+    border-radius:14px;
+    padding:10px 12px 6px;
+    margin:0 0 16px;
+    text-align:left;
+  }
+  .leaderboard-title{
+    font-family:'Baloo 2',sans-serif;
+    font-size:14px;
+    font-weight:700;
+    color:var(--ink);
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .leaderboard-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    max-height:180px;
+    overflow-y:auto;
+  }
+  .leaderboard-list li{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:4px 2px;
+    font-size:12.5px;
+    color:var(--ink);
+    border-bottom:1px solid rgba(31,43,61,.08);
+  }
+  .leaderboard-list li:last-child{ border-bottom:none; }
+  .leaderboard-list .lb-rank{
+    flex:0 0 20px;
+    font-weight:700;
+    color:var(--accent-deep);
+    font-family:'Baloo 2',sans-serif;
+  }
+  .leaderboard-list .lb-name{
+    flex:1 1 auto;
+    min-width:0;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .leaderboard-list .lb-score{
+    flex:0 0 auto;
+    font-variant-numeric:tabular-nums;
+    color:var(--accent-blue);
+    font-weight:700;
+  }
+  .leaderboard-list .lb-date{
+    flex:0 0 auto;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .leaderboard-empty{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12.5px;
+    padding:6px 0;
+  }
+  [hidden]{ display:none !important; }

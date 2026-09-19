@@ -814,15 +814,44 @@
     text-wrap:balance;
   }
   .card h1 .paw{color:var(--accent-deep);}
+  .start-banner-wrap{
+    position:relative;
+    width:100%;
+    max-width:288px;
+    margin:-4px auto 14px;
+  }
   .start-banner-pic{
     display:block;
     width:100%;
-    max-width:288px;
     height:auto;
-    margin:-4px auto 14px;
+    margin:0;
     border-radius:16px;
     box-shadow:0 6px 0 rgba(31,43,61,.14), 0 10px 20px rgba(31,43,61,.22);
   }
+  /* ---- visitor count badge: sits as a small pill overlaid on the top-right corner of the
+     start-screen banner art, so it adds zero extra vertical space to the card layout and
+     never competes with the start button / TOP3 board below it. ---- */
+  .visit-badge{
+    position:absolute;
+    top:8px;
+    right:8px;
+    z-index:1;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    background:rgba(20,30,50,.55);
+    color:#fff;
+    font-family:'Nunito',sans-serif;
+    font-weight:700;
+    font-size:10px;
+    line-height:1;
+    padding:5px 9px;
+    border-radius:999px;
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+    white-space:nowrap;
+  }
+  .visit-badge .dot{ opacity:.55; }
+  .visit-badge[hidden]{ display:none; }
   .gameover-pic{
     display:block;
     width:112px;
@@ -912,6 +941,15 @@
   button.primary.small:active{
     transform:translateY(3px);
     box-shadow:0 1px 0 #274a72;
+  }
+  /* ---- start button: slightly smaller than the base .primary size, with its own
+     margin-bottom so its box-shadow (which renders outside the layout box and doesn't
+     reserve space on its own) has clear room before the TOP3 board starts, instead of the
+     two visually touching/overlapping. ---- */
+  #startBtn{
+    font-size:15px;
+    padding:10px 26px;
+    margin-bottom:14px;
   }
   .scoreline.single{ margin:10px 0 14px; }
   a.leaderboard-btn{

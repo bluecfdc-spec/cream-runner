@@ -89,6 +89,10 @@
 
 <audio id="bgm-main" preload="auto" src="main_bgm.mp4"></audio>
 <audio id="bgm-loop" preload="auto" src="loop.wav"></audio>
+<!-- Firebase (Firestore) - powers the no-login leaderboard. Replaces the old Google Apps
+     Script + Sheet backend, which was prone to silent deployment breakage. -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

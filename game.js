@@ -342,10 +342,6 @@
     return y + '.' + m + '.' + day;
   }
 
-  function sortedTop(list, n){
-    return list.slice().sort(function(a, b){ return (b.score || 0) - (a.score || 0); }).slice(0, n);
-  }
-
   function renderLeaderboard(listEl, statusEl, entries, highlight){
     listEl.innerHTML = '';
     if (!entries.length){
@@ -417,9 +413,9 @@
     });
   }
 
-  function loadLeaderboard(){
+  function loadLeaderboard(limitN){
     return withTimeout(
-      db.collection(SCORES_COLLECTION).get().then(function(snapshot){
+      db.collection(SCORES_COLLECTION).orderBy('score', 'desc').limit(limitN).get().then(function(snapshot){
         var arr = [];
         snapshot.forEach(function(doc){ arr.push(doc.data()); });
         return arr;
@@ -436,13 +432,13 @@
   function loadTop3(){
     top3Status.hidden = false;
     top3Status.textContent = '불러오는 중...';
-    return loadLeaderboard().then(function(full){
-      if (full === null){
+    return loadLeaderboard(3).then(function(top3){
+      if (top3 === null){
         top3Status.hidden = false;
         top3Status.textContent = '순위를 불러오지 못했어요.';
         return;
       }
-      renderLeaderboard(top3List, top3Status, sortedTop(full, 3), false);
+      renderLeaderboard(top3List, top3Status, top3, false);
     });
   }
 
@@ -450,13 +446,12 @@
     top10Status.hidden = false;
     top10Status.textContent = '불러오는 중...';
     newRecordBox.hidden = true;
-    return loadLeaderboard().then(function(full){
-      if (full === null){
+    return loadLeaderboard(10).then(function(top10){
+      if (top10 === null){
         top10Status.hidden = false;
         top10Status.textContent = '순위를 불러오지 못했어요.';
         return;
       }
-      var top10 = sortedTop(full, 10);
       renderLeaderboard(top10List, top10Status, top10, true);
 
       var qualifies = top10.length < 10 || finalScore > (top10[9] ? top10[9].score : -Infinity);
@@ -484,10 +479,9 @@
       if (ref === null){
         throw new Error('timeout');
       }
-      return loadLeaderboard();
-    }).then(function(full){
-      var arr = full || [];
-      renderLeaderboard(top10List, top10Status, sortedTop(arr, 10), true);
+      return loadLeaderboard(10);
+    }).then(function(top10){
+      renderLeaderboard(top10List, top10Status, top10 || [], true);
       newRecordLabel.textContent = '✅ 등록 완료!';
       nameInput.hidden = true;
       submitNameBtn.hidden = true;

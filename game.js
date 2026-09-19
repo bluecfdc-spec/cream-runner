@@ -30,110 +30,28 @@
   var newRecordLabel = document.getElementById('newRecordLabel');
   var nameInput = document.getElementById('nameInput');
   var submitNameBtn = document.getElementById('submitNameBtn');
-  var loadingScreen = document.getElementById('loadingScreen');
-  var loadingStatus = document.getElementById('loadingStatus');
   var gameoverPic = document.getElementById('gameoverPic');
   var bannerImg = document.getElementById('bannerImg');
   var startBannerImg = document.getElementById('startBannerImg');
 
-  // Images/audio are stored in the repo as base64 text files (assets/*.b64) rather than
-  // raw binary, because the GitHub publishing tool used to build this page only accepts
-  // plain-text file content. At load time we fetch each .b64 file, decode it back into
-  // its original bytes, and turn it into a blob: URL - byte-for-byte identical to the
-  // original PNG/JPG/WAV/MP4, just fetched as a separate cacheable file instead of being
-  // inlined directly in the HTML/CSS.
-  var IMG_RUN = "";
-  var IMG_JUMP = "";
-  var IMG_GAMEOVER = "";
-  var IMG_POOP = "";
-  var IMG_DOG_A = "";
-  var IMG_DOG_B = "";
-  var IMG_STAR_ITEM = "";
-  var IMG_BANNER = "";
-  var IMG_START_BANNER = "";
-  var IMG_STROLLER = "";
-  var IMG_INVINCIBLE_CHAR = "";
-  var IMG_CROW_UP = "";
-  var IMG_CROW_DOWN = "";
-
-  var ASSET_LIST = [
-    ['IMG_RUN', 'assets/img_run.png.b64', 'image/png'],
-    ['IMG_JUMP', 'assets/img_jump.png.b64', 'image/png'],
-    ['IMG_GAMEOVER', 'assets/img_gameover.png.b64', 'image/png'],
-    ['IMG_POOP', 'assets/img_poop.png.b64', 'image/png'],
-    ['IMG_DOG_A', 'assets/img_dog_a.png.b64', 'image/png'],
-    ['IMG_DOG_B', 'assets/img_dog_b.png.b64', 'image/png'],
-    ['IMG_STAR_ITEM', 'assets/img_star_item.png.b64', 'image/png'],
-    ['IMG_BANNER', 'assets/img_banner.png.b64', 'image/png'],
-    ['IMG_START_BANNER', 'assets/img_start_banner.jpg.b64', 'image/jpeg'],
-    ['IMG_STROLLER', 'assets/img_stroller.png.b64', 'image/png'],
-    ['IMG_INVINCIBLE_CHAR', 'assets/img_invincible_char.png.b64', 'image/png'],
-    ['IMG_CROW_UP', 'assets/img_crow_up.png.b64', 'image/png'],
-    ['IMG_CROW_DOWN', 'assets/img_crow_down.png.b64', 'image/png'],
-    ['SKY_BG', 'assets/sky.jpg.b64', 'image/jpeg'],
-    ['BGM_MAIN', 'main_bgm.mp4.b64', 'video/mp4'],
-    ['BGM_LOOP', 'loop.wav.b64', 'audio/wav']
-  ];
-  var assetUrls = {};
-
-  function b64ToBlobUrl(b64text, mime){
-    var binary = atob(b64text);
-    var len = binary.length;
-    var bytes = new Uint8Array(len);
-    for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    return URL.createObjectURL(new Blob([bytes], { type: mime }));
-  }
-
-  function loadAllAssets(onDone){
-    var total = ASSET_LIST.length;
-    var loaded = 0;
-    function updateProgress(){
-      if (loadingStatus) loadingStatus.textContent = '불러오는 중... ' + Math.round((loaded / total) * 100) + '%';
-    }
-    updateProgress();
-    ASSET_LIST.forEach(function(entry){
-      var key = entry[0], file = entry[1], mime = entry[2];
-      fetch(file)
-        .then(function(r){ return r.text(); })
-        .then(function(b64text){ assetUrls[key] = b64ToBlobUrl(b64text, mime); })
-        .catch(function(){ assetUrls[key] = ''; })
-        .then(function(){
-          loaded++;
-          updateProgress();
-          if (loaded === total) onDone();
-        });
-    });
-  }
-
-  function applyLoadedAssets(){
-    IMG_RUN = assetUrls.IMG_RUN;
-    IMG_JUMP = assetUrls.IMG_JUMP;
-    IMG_GAMEOVER = assetUrls.IMG_GAMEOVER;
-    IMG_POOP = assetUrls.IMG_POOP;
-    IMG_DOG_A = assetUrls.IMG_DOG_A;
-    IMG_DOG_B = assetUrls.IMG_DOG_B;
-    IMG_STAR_ITEM = assetUrls.IMG_STAR_ITEM;
-    IMG_BANNER = assetUrls.IMG_BANNER;
-    IMG_START_BANNER = assetUrls.IMG_START_BANNER;
-    IMG_STROLLER = assetUrls.IMG_STROLLER;
-    IMG_INVINCIBLE_CHAR = assetUrls.IMG_INVINCIBLE_CHAR;
-    IMG_CROW_UP = assetUrls.IMG_CROW_UP;
-    IMG_CROW_DOWN = assetUrls.IMG_CROW_DOWN;
-
-    if (gameoverPic) gameoverPic.src = IMG_GAMEOVER;
-    if (bannerImg) bannerImg.src = IMG_BANNER;
-    if (startBannerImg) startBannerImg.src = IMG_START_BANNER;
-    if (gaugeIcon) gaugeIcon.src = IMG_STROLLER;
-    if (gaugeRider) gaugeRider.src = IMG_INVINCIBLE_CHAR;
-    if (sky) sky.style.backgroundImage = "url('" + assetUrls.SKY_BG + "')";
-    if (bgmMain) bgmMain.src = assetUrls.BGM_MAIN;
-    if (bgmLoop) bgmLoop.src = assetUrls.BGM_LOOP;
-
-    setCharImage(false);
-
-    if (loadingScreen) loadingScreen.hidden = true;
-    if (startScreen) startScreen.hidden = false;
-  }
+  var IMG_RUN = "assets/img_run.png";
+  var IMG_JUMP = "assets/img_jump.png";
+  var IMG_GAMEOVER = "assets/img_gameover.png";
+  var IMG_POOP = "assets/img_poop.png";
+  var IMG_DOG_A = "assets/img_dog_a.png";
+  var IMG_DOG_B = "assets/img_dog_b.png";
+  var IMG_STAR_ITEM = "assets/img_star_item.png";
+  var IMG_BANNER = "assets/img_banner.png";
+  var IMG_START_BANNER = "assets/img_start_banner.jpg";
+  var IMG_STROLLER = "assets/img_stroller.png";
+  var IMG_INVINCIBLE_CHAR = "assets/img_invincible_char.png";
+  var IMG_CROW_UP = "assets/img_crow_up.png";
+  var IMG_CROW_DOWN = "assets/img_crow_down.png";
+  if (gameoverPic) gameoverPic.src = IMG_GAMEOVER;
+  if (bannerImg) bannerImg.src = IMG_BANNER;
+  if (startBannerImg) startBannerImg.src = IMG_START_BANNER;
+  if (gaugeIcon) gaugeIcon.src = IMG_STROLLER;
+  if (gaugeRider) gaugeRider.src = IMG_INVINCIBLE_CHAR;
 
   /* ---------------- audio: sfx (synthesized) + BGM (compilation -> infinite loop) ---------------- */
   var audioCtx = null, masterGain = null, sfxGain = null;
@@ -1207,6 +1125,4 @@
     lastTime = now;
     rafId = requestAnimationFrame(keepAlive);
   });
-
-  loadAllAssets(applyLoadedAssets);
 })();

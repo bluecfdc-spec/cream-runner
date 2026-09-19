@@ -547,13 +547,21 @@
       var inc = firebase.firestore.FieldValue.increment(1);
       // atomic increments - no read-before-write needed, so this is a single cheap write
       // per document regardless of how many visits have accumulated so far.
-      totalRef.set({ count: inc }, { merge: true }).catch(function(){});
-      todayRef.set({ count: inc, date: todayKey }, { merge: true }).catch(function(){});
+      var totalWrite = totalRef.set({ count: inc }, { merge: true }).catch(function(){});
+      var todayWrite = todayRef.set({ count: inc, date: todayKey }, { merge: true }).catch(function(){});
 
-      Promise.all([
-        withTimeout(totalRef.get(), FETCH_TIMEOUT_MS),
-        withTimeout(todayRef.get(), FETCH_TIMEOUT_MS)
-      ]).then(function(results){
+      // wait for the increments to actually settle on the server before reading them back.
+      // reading immediately after an increment() write returns the SDK's local optimistic
+      // estimate - which assumes a base of 0 when the true prior value isn't cached on this
+      // page load yet - instead of the real accumulated total, so the badge would otherwise
+      // always show "1" no matter how many visits have actually happened. This ordering only
+      // delays the badge itself; it still never blocks or gates anything else on the page.
+      Promise.all([totalWrite, todayWrite]).then(function(){
+        return Promise.all([
+          withTimeout(totalRef.get(), FETCH_TIMEOUT_MS),
+          withTimeout(todayRef.get(), FETCH_TIMEOUT_MS)
+        ]);
+      }).then(function(results){
         if (!visitBadge) return;
         var totalSnap = results[0];
         var todaySnap = results[1];

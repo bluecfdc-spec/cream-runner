@@ -52,6 +52,21 @@
   var IMG_CROW_UP = "assets/img_crow_up.png";
   var IMG_CROW_DOWN = "assets/img_crow_down.png";
 
+  // ---- 점수 구간 돌파 축하 연출: 1,000 / 5,000 / 10,000점을 처음 넘는 순간, 플레이 화면
+  // 왼쪽 상단(캐릭터 뒷편)에 축하 이미지가 1초간 떴다 사라지고 축하음이 한 번 울린다.
+  // 순수 연출이라 obstacles에 절대 들어가지 않고 충돌/점프/게임오버 판정과 무관하다.
+  // 구간을 추가/변경하려면 SCORE_MILESTONES 배열만 고치면 된다 (이미지는 assets/ 안에).
+  var SCORE_MILESTONES = [
+    { score: 1000,  img: "assets/milestone_1000.webp" },
+    { score: 5000,  img: "assets/milestone_5000.webp" },
+    { score: 10000, img: "assets/milestone_10000.webp" }
+  ];
+  var MILESTONE_FX_MS = 1000;      // 화면에 보이는 시간 (1초)
+  var MILESTONE_SIZE_FRAC = 0.286; // 오빠!/엄마! 문구(0.26)보다 10% 큰 폭
+  var milestoneIdx = 0;            // 다음에 터질 구간 (reset()에서 0으로 초기화)
+  // 1초만 보이는 연출이라 그 순간에 처음 받아오면 늦게 떠서 놓칠 수 있으니 미리 받아둔다.
+  SCORE_MILESTONES.forEach(function(m){ var pre = new Image(); pre.src = m.img; });
+
   // ---- 3-lives family recovery system: state 3 = 온가족(원본 트리오), 2 = 여자+강아지,
   // 1 = 강아지 혼자. Run art for state 3 reuses the original IMG_RUN/IMG_JUMP; states 2/1
   // use the CHAR_IMG_RUN_1/2 (run) and CHAR_IMG_JUMP_1/2/3 (jump) globals loaded from
@@ -221,6 +236,20 @@
     var t = audioCtx.currentTime;
     playTone(sfxGain, 1046.5, t, 0.09, 0.3, 'triangle');
     playTone(sfxGain, 1568.0, t + 0.06, 0.14, 0.3, 'triangle');
+  }
+
+  // 점수 구간 돌파(1,000/5,000/10,000점) 축하음: 밝게 쭉 올라가는 아르페지오(도-미-솔-높은도)에
+  // 반짝이는 꼬리음을 얹은 짧은 팡파레. 다른 효과음과 같은 합성음이라 추가 음원 파일이 필요 없고,
+  // 돌파 연출 이미지와 같은 타이밍에 딱 한 번만 울린다.
+  function playMilestoneSfx(){
+    if (!audioCtx) return;
+    var t = audioCtx.currentTime;
+    playTone(sfxGain, 523.25, t, 0.12, 0.34, 'triangle');
+    playTone(sfxGain, 659.25, t + 0.08, 0.12, 0.32, 'triangle');
+    playTone(sfxGain, 783.99, t + 0.16, 0.14, 0.32, 'triangle');
+    playTone(sfxGain, 1046.5, t + 0.26, 0.34, 0.36, 'triangle');
+    playTone(sfxGain, 1568.0, t + 0.30, 0.26, 0.18, 'sine');
+    playTone(sfxGain, 2093.0, t + 0.40, 0.22, 0.12, 'sine');
   }
 
   // ---- BGM v2: open_fix plays fixed at game start, then all tracks in assets/bgm_manifest.js
@@ -816,6 +845,7 @@
     hitInvulnTimer = 0;
     bonusDueAt = null;
     bonusSpawned = false;
+    milestoneIdx = 0;
     character.classList.remove('invincible', 'invincible-warning');
     if (invincibleHud) invincibleHud.hidden = true;
     if (charCountdown) charCountdown.hidden = true;
@@ -1209,6 +1239,24 @@
     setTimeout(function(){ el.remove(); }, 1600);
   }
 
+  // 점수 구간 돌파 축하 이미지: 플레이 화면(#app) 왼쪽 상단, 캐릭터 뒷편(달려온 쪽)에 1초간
+  // 떴다 사라진다. 오빠!/엄마! 문구와 마찬가지로 effectsLayer 안의 순수 연출이라 obstacles에
+  // 들어가지 않고 충돌/판정에 전혀 영향이 없다. 폭만 지정하고 높이는 원본 비율(auto)로 두기
+  // 때문에 이미지 비율이 어떻든 찌그러지거나 잘리지 않으며, 팝업 확대/상승 애니메이션까지
+  // 감안한 위치라서 화면 밖으로 삐져나가지도 않는다.
+  function spawnMilestoneFx(src){
+    if (!effectsLayer) return;
+    var rect = app.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'milestone-fx';
+    el.style.left = (rect.width * 0.025) + 'px';
+    el.style.top = (rect.height * 0.05) + 'px';
+    el.style.width = (rect.height * MILESTONE_SIZE_FRAC) + 'px';
+    el.innerHTML = '<img src="' + src + '" alt="">';
+    effectsLayer.appendChild(el);
+    setTimeout(function(){ el.remove(); }, MILESTONE_FX_MS + 120);
+  }
+
   function spawnGroundObstacle(type, skipCombo, xOffset){
     var rect = app.getBoundingClientRect();
     var x = rect.width + 20 + (xOffset || 0);
@@ -1569,6 +1617,15 @@
 
       score += dt * 12;
       scoreVal.textContent = String(Math.floor(score));
+
+      // 구간 돌파 연출: 각 구간 점수를 처음 넘어서는 프레임에 이미지 + 축하음이 딱 한 번.
+      // milestoneIdx가 앞으로만 움직이므로 한 판에서 같은 구간이 두 번 터지는 일은 없고,
+      // reset()에서 0으로 돌아가니 다시하기를 하면 1,000점부터 새로 축하해준다.
+      while (milestoneIdx < SCORE_MILESTONES.length && score >= SCORE_MILESTONES[milestoneIdx].score){
+        spawnMilestoneFx(SCORE_MILESTONES[milestoneIdx].img);
+        playMilestoneSfx();
+        milestoneIdx++;
+      }
     }
 
     rafId = requestAnimationFrame(loop);

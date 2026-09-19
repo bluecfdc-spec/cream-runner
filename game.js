@@ -278,14 +278,17 @@
     var title = track ? track.title : '';
     for (var i = 0; i < bgmTitleCopyEls.length; i++) bgmTitleCopyEls[i].textContent = title;
     if (!bgmTitleTrackEl) return;
+    // restart the animation synchronously (no requestAnimationFrame dependency, so this
+    // still works even in a throttled/background tab): 'none' + forcing a reflow by
+    // reading offsetWidth clears the old animation state before applying the new
+    // duration, instead of the browser silently keeping the previous run in progress.
     bgmTitleTrackEl.style.animation = 'none';
-    requestAnimationFrame(function(){
-      var copyEl = bgmTitleCopyEls[0];
-      var w = copyEl ? copyEl.offsetWidth : 0;
-      var dur = Math.max(4, w / BGM_MARQUEE_SPEED);
-      bgmTitleTrackEl.style.animation = 'bgmMarquee ' + dur + 's linear infinite';
-      bgmTitleTrackEl.style.animationPlayState = 'running';
-    });
+    var copyEl = bgmTitleCopyEls[0];
+    if (copyEl) void copyEl.offsetWidth; // force reflow
+    var w = copyEl ? copyEl.offsetWidth : 0;
+    var dur = Math.max(4, w / BGM_MARQUEE_SPEED);
+    bgmTitleTrackEl.style.animation = 'bgmMarquee ' + dur + 's linear infinite';
+    bgmTitleTrackEl.style.animationPlayState = 'running';
   }
   function bgmSetSpinning(running){
     var state = running ? 'running' : 'paused';

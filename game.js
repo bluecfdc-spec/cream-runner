@@ -26,6 +26,7 @@
   var top3Status = document.getElementById('top3Status');
   var top10List = document.getElementById('top10List');
   var top10Status = document.getElementById('top10Status');
+  var loadingOverlay = document.getElementById('loadingOverlay');
   var newRecordBox = document.getElementById('newRecordBox');
   var newRecordLabel = document.getElementById('newRecordLabel');
   var nameInput = document.getElementById('nameInput');
@@ -366,17 +367,46 @@
     });
   }
 
+  function showLoading(){
+    if (loadingOverlay) loadingOverlay.hidden = false;
+  }
+  function hideLoading(){
+    if (loadingOverlay) loadingOverlay.hidden = true;
+  }
+
+  // the leaderboard backend (Google Apps Script + Sheet) can occasionally hang or take a
+  // very long time to answer - without a hard timeout, a stalled request left people
+  // staring at a screen that never finished appearing (see showLoading/hideLoading below).
+  // This caps how long any single call is allowed to hang before we give up on it and show
+  // the "couldn't load" state instead.
+  var FETCH_TIMEOUT_MS = 8000;
+
+  function fetchWithTimeout(url, opts, timeoutMs){
+    opts = opts || {};
+    var hasAbort = typeof AbortController !== 'undefined';
+    var controller = hasAbort ? new AbortController() : null;
+    if (controller) opts.signal = controller.signal;
+    var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
+    var clear = function(){ if (timeoutId) clearTimeout(timeoutId); };
+    return fetch(url, opts).then(function(r){ clear(); return r; }, function(err){ clear(); throw err; });
+  }
+
   function loadLeaderboard(){
-    return fetch(API_URL, { method: 'GET' })
+    return fetchWithTimeout(API_URL, { method: 'GET' }, FETCH_TIMEOUT_MS)
       .then(function(r){ return r.json(); })
       .then(function(data){ return Array.isArray(data) ? data : []; })
       .catch(function(){ return null; });
   }
 
+  // returns a promise that always resolves (never rejects) once the fetch attempt is
+  // fully settled (success, failure, or timeout) - callers gate revealing a screen on
+  // this promise so the screen only ever appears once the leaderboard call is truly done,
+  // one way or the other, instead of appearing right away with a buried "불러오는 중..."
+  // line that's easy to miss while the fetch is still running underneath it.
   function loadTop3(){
     top3Status.hidden = false;
     top3Status.textContent = '불러오는 중...';
-    loadLeaderboard().then(function(full){
+    return loadLeaderboard().then(function(full){
       if (full === null){
         top3Status.hidden = false;
         top3Status.textContent = '순위를 불러오지 못했어요.';
@@ -390,7 +420,7 @@
     top10Status.hidden = false;
     top10Status.textContent = '불러오는 중...';
     newRecordBox.hidden = true;
-    loadLeaderboard().then(function(full){
+    return loadLeaderboard().then(function(full){
       if (full === null){
         top10Status.hidden = false;
         top10Status.textContent = '순위를 불러오지 못했어요.';
@@ -417,11 +447,11 @@
     submitNameBtn.disabled = true;
     nameInput.disabled = true;
     submitNameBtn.textContent = '등록 중...';
-    fetch(API_URL, {
+    fetchWithTimeout(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ name: name, score: lastFinalScore, date: lastFinalDate })
-    })
+    }, 10000)
       .then(function(r){ return r.json(); })
       .then(function(data){
         var full = Array.isArray(data) ? data : [];
@@ -445,7 +475,13 @@
     });
   }
 
-  loadTop3();
+  // start screen stays hidden (see index.html) until the initial TOP3 fetch has fully
+  // settled - the spinner overlay is what's visible in the meantime.
+  showLoading();
+  loadTop3().then(function(){
+    hideLoading();
+    startScreen.hidden = false;
+  });
 
   function layout(){
     var rect = app.getBoundingClientRect();
@@ -595,9 +631,14 @@
     newRecordBox.hidden = true;
     nameInput.hidden = false;
     submitNameBtn.hidden = false;
-    loadTop10AndCheckRecord(finalScore, lastFinalDate);
 
-    gameOverScreen.hidden = false;
+    // the game-over screen itself only appears once the TOP10 fetch has fully settled -
+    // the spinner overlay covers the wait instead, so it's never mistaken for a freeze.
+    showLoading();
+    loadTop10AndCheckRecord(finalScore, lastFinalDate).then(function(){
+      hideLoading();
+      gameOverScreen.hidden = false;
+    });
   }
 
   var HIT_STOP_MS = 420; // how long the freeze/flash/shake plays before the score screen shows

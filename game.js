@@ -34,6 +34,9 @@
   var gameoverPic = document.getElementById('gameoverPic');
   var bannerImg = document.getElementById('bannerImg');
   var startBannerImg = document.getElementById('startBannerImg');
+  var visitBadge = document.getElementById('visitBadge');
+  var visitTodayEl = document.getElementById('visitToday');
+  var visitTotalEl = document.getElementById('visitTotal');
 
   var IMG_RUN = "assets/img_run.png";
   var IMG_JUMP = "assets/img_jump.png";
@@ -339,6 +342,10 @@
   // in-app browsers too, at the cost of a small amount of extra latency on a normal network.
   db.settings({ experimentalAutoDetectLongPolling: true, useFetchStreams: false });
   var SCORES_COLLECTION = 'scores';
+  // visitor counter: a completely separate collection/documents from `scores`, written with
+  // atomic increments (no read-before-write needed), so it never touches or competes with
+  // the leaderboard's read/write path or its performance.
+  var VISITS_COLLECTION = 'visits';
   var lastFinalScore = null;
   var lastFinalDate = null;
 
@@ -348,6 +355,15 @@
     var m = ('0' + (d.getMonth() + 1)).slice(-2);
     var day = ('0' + d.getDate()).slice(-2);
     return y + '.' + m + '.' + day;
+  }
+
+  // key for "today"'s visit-counter document, e.g. "2026-09-19"
+  function formatDateKey(){
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
   }
 
   function renderLeaderboard(listEl, statusEl, entries, highlight){
@@ -508,6 +524,40 @@
     });
   }
 
+  // ---- visitor counter (오늘 접속 / 누적 접속) ----
+  // Deliberately kept 100% independent of the leaderboard flow above: it never gates
+  // showLoading/hideLoading or the start screen reveal, and any failure here is swallowed
+  // silently (the badge just stays hidden) so it can never slow down or break page load,
+  // the leaderboard, or score submission. Runs exactly once per page load (not on every
+  // return to the start screen after a run), so replaying the game never inflates it.
+  function recordAndShowVisitCounts(){
+    try {
+      var todayKey = formatDateKey();
+      var totalRef = db.collection(VISITS_COLLECTION).doc('total');
+      var todayRef = db.collection(VISITS_COLLECTION).doc(todayKey);
+      var inc = firebase.firestore.FieldValue.increment(1);
+      // atomic increments - no read-before-write needed, so this is a single cheap write
+      // per document regardless of how many visits have accumulated so far.
+      totalRef.set({ count: inc }, { merge: true }).catch(function(){});
+      todayRef.set({ count: inc, date: todayKey }, { merge: true }).catch(function(){});
+
+      Promise.all([
+        withTimeout(totalRef.get(), FETCH_TIMEOUT_MS),
+        withTimeout(todayRef.get(), FETCH_TIMEOUT_MS)
+      ]).then(function(results){
+        if (!visitBadge) return;
+        var totalSnap = results[0];
+        var todaySnap = results[1];
+        var totalCount = (totalSnap && totalSnap.exists) ? totalSnap.data().count : null;
+        var todayCount = (todaySnap && todaySnap.exists) ? todaySnap.data().count : null;
+        if (totalCount == null && todayCount == null) return; // couldn't load - just skip it, non-critical
+        visitTodayEl.textContent = '오늘 ' + (todayCount != null ? todayCount : '-');
+        visitTotalEl.textContent = '누적 ' + (totalCount != null ? totalCount : '-');
+        visitBadge.hidden = false;
+      }).catch(function(){ /* non-critical - leave badge hidden */ });
+    } catch (e) { /* never let this interfere with the rest of page startup */ }
+  }
+
   // start screen stays hidden (see index.html) until the initial TOP3 fetch has fully
   // settled - the spinner overlay is what's visible in the meantime.
   showLoading();
@@ -515,6 +565,8 @@
     hideLoading();
     startScreen.hidden = false;
   });
+  // fired in parallel, not chained - never delays the loading overlay / start screen above.
+  recordAndShowVisitCounts();
 
   function layout(){
     var rect = app.getBoundingClientRect();

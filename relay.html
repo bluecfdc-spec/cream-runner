@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>크림이 런너 - 랭킹</title>
+<title>크림이 러너 - 랭킹</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
 
@@ -194,7 +194,7 @@
 </head>
 <body>
 <div class="card">
-  <h1 id="pageTitle">🏆 크림이 런너 랭킹</h1>
+  <h1 id="pageTitle">🏆 크림이 러너 랭킹</h1>
   <p class="sub" id="pageSub">홍, 시뇽, 크리미의 산책 기록판</p>
 
   <div id="scoreArea"></div>
@@ -204,7 +204,7 @@
   <ol id="list" class="list"></ol>
 
   <button id="backBtn" class="btn btn-gold" type="button">🎮 게임으로 돌아가기</button>
-  <p class="hint">크림이 런너를 플레이하고 온 가족 중 몇 등인지 확인해보세요!</p>
+  <p class="hint">크림이 러너를 플레이하고 온 가족 중 몇 등인지 확인해보세요!</p>
 </div>
 
 <script>
@@ -236,10 +236,10 @@
   });
 
   if (!hasIncomingScore){
-    pageTitle.textContent = topN <= 3 ? '🏆 크림이 런너 TOP 3' : '🏆 크림이 런너 TOP 10';
+    pageTitle.textContent = topN <= 3 ? '🏆 크림이 러너 TOP 3' : '🏆 크림이 러너 TOP 10';
     pageSub.textContent = '지금까지의 최고 기록이에요!';
   } else {
-    pageTitle.textContent = '🏆 크림이 런너 TOP 10';
+    pageTitle.textContent = '🏆 크림이 러너 TOP 10';
     scoreArea.innerHTML =
       '<div class="score-box"><span class="label">이번 점수</span>' +
       '<span class="value">' + incomingScore + '</span></div>';

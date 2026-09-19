@@ -1,1 +1,347 @@
-FILE_PLACEHOLDER
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>크림이 런너 - 랭킹</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root{
+    --sky-top:#eaf6ff;
+    --sky-bottom:#bfe4ff;
+    --panel:#fff9ee;
+    --panel-border:#f0dfb8;
+    --ink:#233047;
+    --ink-soft:#5a6a86;
+    --accent:#f0b429;
+    --accent-deep:#c8860f;
+    --accent-blue:#3d6fa8;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Nunito',-apple-system,'Malgun Gothic',sans-serif;
+    background:linear-gradient(var(--sky-top),var(--sky-bottom));
+    padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));
+    color:var(--ink);
+  }
+  .card{
+    background:var(--panel);
+    border:3px solid var(--panel-border);
+    border-radius:22px;
+    padding:26px 22px 24px;
+    max-width:380px;
+    width:100%;
+    text-align:center;
+    box-shadow:0 10px 0 rgba(31,43,61,.18), 0 16px 30px rgba(31,43,61,.25);
+  }
+  h1{
+    margin:0 0 4px;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:23px;
+    color:var(--ink);
+  }
+  p.sub{
+    margin:0 0 16px;
+    font-size:13px;
+    color:var(--ink-soft);
+  }
+  .score-box{
+    background:#fff;
+    border:2px solid var(--panel-border);
+    border-radius:12px;
+    padding:8px 16px;
+    display:inline-block;
+    margin-bottom:16px;
+  }
+  .score-box .label{
+    display:block;
+    font-size:11px;
+    color:var(--ink-soft);
+    font-weight:700;
+  }
+  .score-box .value{
+    font-family:'Baloo 2',sans-serif;
+    font-size:23px;
+    font-weight:800;
+    color:var(--accent-deep);
+  }
+  .name-row{
+    display:flex;
+    gap:6px;
+    margin-bottom:14px;
+  }
+  .name-row input{
+    flex:1 1 auto;
+    min-width:0;
+    font-family:'Nunito',sans-serif;
+    font-size:14px;
+    padding:10px 12px;
+    border:2px solid var(--panel-border);
+    border-radius:10px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .name-row input:focus{ outline:2px solid var(--accent-blue); }
+  button, .btn{
+    font-family:'Baloo 2',sans-serif;
+    font-size:15px;
+    font-weight:700;
+    color:#fff;
+    background:linear-gradient(180deg,#4c86c7,var(--accent-blue));
+    border:none;
+    border-radius:14px;
+    padding:11px 20px;
+    cursor:pointer;
+    box-shadow:0 5px 0 #274a72;
+    display:inline-block;
+    text-decoration:none;
+  }
+  button:active, .btn:active{
+    transform:translateY(4px);
+    box-shadow:0 1px 0 #274a72;
+  }
+  button:disabled{ opacity:.6; cursor:default; transform:none; box-shadow:0 5px 0 #274a72; }
+  .btn-gold{
+    background:linear-gradient(180deg,#ffcf6b,var(--accent-deep));
+    box-shadow:0 5px 0 #a15d0e;
+    width:100%;
+    margin-top:6px;
+  }
+  .btn-gold:active{ box-shadow:0 1px 0 #a15d0e; }
+  .list{
+    list-style:none;
+    margin:0 0 6px;
+    padding:0;
+    text-align:left;
+    max-height:280px;
+    overflow-y:auto;
+  }
+  .list li{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 4px;
+    font-size:13.5px;
+    border-bottom:1px solid rgba(31,43,61,.08);
+    color:var(--ink);
+  }
+  .list li.me{
+    background:rgba(240,180,41,.16);
+    border-radius:8px;
+  }
+  .list .rank{
+    flex:0 0 28px;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    color:var(--accent-deep);
+  }
+  .list .name{
+    flex:1 1 auto;
+    min-width:0;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .list .score{
+    flex:0 0 auto;
+    color:var(--accent-blue);
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+  }
+  .list .date{
+    flex:0 0 auto;
+    font-size:10.5px;
+    color:var(--ink-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .status{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin:10px 0;
+  }
+  .result-box{
+    border-radius:14px;
+    padding:10px 12px;
+    margin:0 0 14px;
+    font-size:13.5px;
+    font-weight:700;
+  }
+  .result-box.good{
+    background:#fff8e6;
+    border:2px dashed var(--accent-deep);
+    color:var(--accent-deep);
+  }
+  .result-box.miss{
+    background:#f2f4f8;
+    border:2px dashed var(--ink-soft);
+    color:var(--ink-soft);
+  }
+  .hint{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:16px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1 id="pageTitle">🏆 크림이 런너 랭킹</h1>
+  <p class="sub" id="pageSub">홍, 시뇽, 크리미의 산책 기록판</p>
+
+  <div id="scoreArea"></div>
+  <div id="resultArea"></div>
+  <div id="formArea"></div>
+  <div id="status" class="status">불러오는 중...</div>
+  <ol id="list" class="list"></ol>
+
+  <button id="backBtn" class="btn btn-gold" type="button">🎮 게임으로 돌아가기</button>
+  <p class="hint">크림이 런너를 플레이하고 온 가족 중 몇 등인지 확인해보세요!</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var API_URL = 'https://script.google.com/macros/s/AKfycby8ffNr-dfwMFx9jE-HNGYR8hT1H9HVtkfx3ZD7iCl4jIkRQbUGAYWfLhtasHXo_NPH/exec';
+  var GAME_URL = 'https://claude.ai/artifact/7dNtQdBRBaN669iZfXNQHr';
+
+  var params = new URLSearchParams(window.location.search);
+  var incomingScore = parseInt(params.get('score'), 10);
+  var incomingDate = params.get('date') || '';
+  var hasIncomingScore = !isNaN(incomingScore);
+  var topN = parseInt(params.get('top'), 10);
+  if (isNaN(topN) || topN <= 0) topN = 10;
+  var backParam = params.get('back');
+  var returnUrl = backParam ? backParam : GAME_URL;
+
+  var scoreArea = document.getElementById('scoreArea');
+  var resultArea = document.getElementById('resultArea');
+  var formArea = document.getElementById('formArea');
+  var statusEl = document.getElementById('status');
+  var listEl = document.getElementById('list');
+  var pageTitle = document.getElementById('pageTitle');
+  var pageSub = document.getElementById('pageSub');
+  var backBtn = document.getElementById('backBtn');
+
+  backBtn.addEventListener('click', function(){
+    window.location.href = returnUrl;
+  });
+
+  if (!hasIncomingScore){
+    pageTitle.textContent = topN <= 3 ? '🏆 크림이 런너 TOP 3' : '🏆 크림이 런너 TOP 10';
+    pageSub.textContent = '지금까지의 최고 기록이에요!';
+  } else {
+    pageTitle.textContent = '🏆 크림이 런너 TOP 10';
+    scoreArea.innerHTML =
+      '<div class="score-box"><span class="label">이번 점수</span>' +
+      '<span class="value">' + incomingScore + '</span></div>';
+  }
+
+  function sortedTop(list, n){
+    return list.slice().sort(function(a, b){ return (b.score||0) - (a.score||0); }).slice(0, n);
+  }
+
+  function renderList(list, highlightNew){
+    listEl.innerHTML = '';
+    if (!list.length){
+      statusEl.textContent = '아직 기록이 없어요. 첫 기록의 주인공이 되어보세요!';
+      return;
+    }
+    statusEl.textContent = '';
+    list.forEach(function(e, i){
+      var li = document.createElement('li');
+      if (highlightNew && hasIncomingScore && e.score === incomingScore && e.date === incomingDate){
+        li.className = 'me';
+      }
+      li.innerHTML =
+        '<span class="rank">' + (i + 1) + '위</span>' +
+        '<span class="name"></span>' +
+        '<span class="score">' + e.score + '점</span>' +
+        '<span class="date">' + (e.date || '') + '</span>';
+      li.querySelector('.name').textContent = e.name;
+      listEl.appendChild(li);
+    });
+  }
+
+  function showResult(qualifies){
+    if (topN <= 3 || !hasIncomingScore) return;
+    var box = document.createElement('div');
+    if (qualifies){
+      box.className = 'result-box good';
+      box.textContent = '🎉 TOP 10 진입! 이름을 남겨보세요.';
+    } else {
+      box.className = 'result-box miss';
+      box.textContent = '아쉬워요, 이번엔 TOP 10에는 들지 못했어요.';
+    }
+    resultArea.innerHTML = '';
+    resultArea.appendChild(box);
+  }
+
+  function showNameForm(){
+    formArea.innerHTML =
+      '<div class="name-row">' +
+      '<input id="nameInput" type="text" maxlength="8" placeholder="이름 입력">' +
+      '<button id="submitBtn" type="button">등록</button>' +
+      '</div>';
+    document.getElementById('submitBtn').addEventListener('click', function(){
+      var btn = this;
+      var name = (document.getElementById('nameInput').value || '').trim() || '익명';
+      name = name.slice(0, 8);
+      btn.disabled = true;
+      btn.textContent = '등록 중...';
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ name: name, score: incomingScore, date: incomingDate })
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+          var full = Array.isArray(data) ? data : [];
+          renderList(sortedTop(full, 10), true);
+          formArea.innerHTML = '<div class="status">✅ 등록 완료!</div>';
+        })
+        .catch(function(e){
+          btn.disabled = false;
+          btn.textContent = '등록';
+          alert('등록 실패: ' + e);
+        });
+    });
+  }
+
+  function loadList(){
+    statusEl.textContent = '불러오는 중...';
+    return fetch(API_URL, { method: 'GET' })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        return Array.isArray(data) ? data : [];
+      })
+      .catch(function(e){
+        statusEl.textContent = '순위를 불러오지 못했어요: ' + e;
+        return null;
+      });
+  }
+
+  loadList().then(function(full){
+    if (full === null) return;
+    var top10 = sortedTop(full, 10);
+    var displayList = topN <= 3 ? top10.slice(0, 3) : top10;
+    renderList(displayList, false);
+
+    if (hasIncomingScore){
+      var qualifies = top10.length < 10 || incomingScore > (top10[9] ? top10[9].score : -Infinity);
+      showResult(qualifies);
+      if (qualifies) showNameForm();
+    }
+  });
+})();
+</script>
+</body>
+</html>

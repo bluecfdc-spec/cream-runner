@@ -1172,10 +1172,17 @@
         }
       }
 
-      var charW = character.offsetWidth * 0.42;
+      // hitbox front edge (facing the direction of travel, where obstacles actually get jumped)
+      // stays pinned at the same spot as before - only the REAR edge (behind, where the
+      // trailing family member's back foot trails off) got pulled in further, so it's no
+      // longer possible to get an "unfair-feeling" hit purely from that back foot overlapping
+      // an obstacle that's already well behind where the front of the character is jumping.
+      var CHAR_HITBOX_FRONT = 0.72; // right edge of the hitbox, as a fraction of sprite width - unchanged
+      var CHAR_HITBOX_REAR = 0.40;  // left/rear edge - moved in from 0.30 to 0.40 for more back-side leeway
+      var charW = character.offsetWidth * (CHAR_HITBOX_FRONT - CHAR_HITBOX_REAR);
       var charH = character.offsetHeight * 0.55; // a bit more forgiving now that the character
                                                   // reads visually smaller relative to obstacles
-      var charLeft = charLeftPx + character.offsetWidth * 0.3;
+      var charLeft = charLeftPx + character.offsetWidth * CHAR_HITBOX_REAR;
       var charTop = groundTop - jumpY - charH;
 
       for (var i = obstacles.length - 1; i >= 0; i--){

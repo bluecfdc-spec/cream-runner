@@ -315,9 +315,22 @@
   var musicRampProgress = 0;
 
   // ---- Top 10 leaderboard ----
-  // Hosted on our own domain (GitHub Pages), so the page can fetch() the Google Apps
-  // Script backend directly - no more navigating away to a separate ranking page.
-  var API_URL = 'https://script.google.com/macros/s/AKfycby8ffNr-dfwMFx9jE-HNGYR8hT1H9HVtkfx3ZD7iCl4jIkRQbUGAYWfLhtasHXo_NPH/exec';
+  // Backed by Firebase Firestore (no-login, public read / rule-validated write) instead of
+  // the old Google Apps Script + Sheet combo, which was prone to silent deployment breakage
+  // (the exec URL started 404ing) and slow cold-starts. To moderate bad entries, open the
+  // "scores" collection in the Firebase console (Firestore Database > 데이터) and delete the
+  // row directly - same manual workflow as before, just in a different console.
+  var firebaseConfig = {
+    apiKey: "AIzaSyAKW4uUsBQxaGOujIi4gS95TsvQnamkX_g",
+    authDomain: "cream-runner.firebaseapp.com",
+    projectId: "cream-runner",
+    storageBucket: "cream-runner.firebasestorage.app",
+    messagingSenderId: "941210359174",
+    appId: "1:941210359174:web:61e4531cbeef98e9d4c807"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var db = firebase.firestore();
+  var SCORES_COLLECTION = 'scores';
   var lastFinalScore = null;
   var lastFinalDate = null;
 
@@ -374,28 +387,45 @@
     if (loadingOverlay) loadingOverlay.hidden = true;
   }
 
-  // the leaderboard backend (Google Apps Script + Sheet) can occasionally hang or take a
-  // very long time to answer - without a hard timeout, a stalled request left people
-  // staring at a screen that never finished appearing (see showLoading/hideLoading below).
-  // This caps how long any single call is allowed to hang before we give up on it and show
-  // the "couldn't load" state instead.
+  // the leaderboard backend can occasionally be slow to answer (cold network, etc.) -
+  // without a hard timeout, a stalled request left people staring at a screen that never
+  // finished appearing (see showLoading/hideLoading below). This caps how long any single
+  // call is allowed to hang before we give up on it and show the "couldn't load" state
+  // instead - it never rejects, it just resolves with null once the time is up, so callers
+  // can gate revealing a screen on it without ever hanging forever.
   var FETCH_TIMEOUT_MS = 8000;
 
-  function fetchWithTimeout(url, opts, timeoutMs){
-    opts = opts || {};
-    var hasAbort = typeof AbortController !== 'undefined';
-    var controller = hasAbort ? new AbortController() : null;
-    if (controller) opts.signal = controller.signal;
-    var timeoutId = controller ? setTimeout(function(){ controller.abort(); }, timeoutMs) : null;
-    var clear = function(){ if (timeoutId) clearTimeout(timeoutId); };
-    return fetch(url, opts).then(function(r){ clear(); return r; }, function(err){ clear(); throw err; });
+  function withTimeout(promise, timeoutMs){
+    return new Promise(function(resolve){
+      var settled = false;
+      var timer = setTimeout(function(){
+        if (settled) return;
+        settled = true;
+        resolve(null);
+      }, timeoutMs);
+      promise.then(function(value){
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      }, function(){
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(null);
+      });
+    });
   }
 
   function loadLeaderboard(){
-    return fetchWithTimeout(API_URL, { method: 'GET' }, FETCH_TIMEOUT_MS)
-      .then(function(r){ return r.json(); })
-      .then(function(data){ return Array.isArray(data) ? data : []; })
-      .catch(function(){ return null; });
+    return withTimeout(
+      db.collection(SCORES_COLLECTION).get().then(function(snapshot){
+        var arr = [];
+        snapshot.forEach(function(doc){ arr.push(doc.data()); });
+        return arr;
+      }),
+      FETCH_TIMEOUT_MS
+    );
   }
 
   // returns a promise that always resolves (never rejects) once the fetch attempt is
@@ -447,25 +477,26 @@
     submitNameBtn.disabled = true;
     nameInput.disabled = true;
     submitNameBtn.textContent = '등록 중...';
-    fetchWithTimeout(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ name: name, score: lastFinalScore, date: lastFinalDate })
-    }, 10000)
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var full = Array.isArray(data) ? data : [];
-        renderLeaderboard(top10List, top10Status, sortedTop(full, 10), true);
-        newRecordLabel.textContent = '✅ 등록 완료!';
-        nameInput.hidden = true;
-        submitNameBtn.hidden = true;
-      })
-      .catch(function(){
-        submitNameBtn.disabled = false;
-        nameInput.disabled = false;
-        submitNameBtn.textContent = '등록';
-        alert('등록에 실패했어요. 잠시 후 다시 시도해주세요.');
-      });
+    withTimeout(
+      db.collection(SCORES_COLLECTION).add({ name: name, score: lastFinalScore, date: lastFinalDate }),
+      10000
+    ).then(function(ref){
+      if (ref === null){
+        throw new Error('timeout');
+      }
+      return loadLeaderboard();
+    }).then(function(full){
+      var arr = full || [];
+      renderLeaderboard(top10List, top10Status, sortedTop(arr, 10), true);
+      newRecordLabel.textContent = '✅ 등록 완료!';
+      nameInput.hidden = true;
+      submitNameBtn.hidden = true;
+    }).catch(function(){
+      submitNameBtn.disabled = false;
+      nameInput.disabled = false;
+      submitNameBtn.textContent = '등록';
+      alert('등록에 실패했어요. 잠시 후 다시 시도해주세요.');
+    });
   }
 
   if (submitNameBtn) submitNameBtn.addEventListener('click', submitScore);

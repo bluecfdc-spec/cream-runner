@@ -100,6 +100,19 @@
      Script + Sheet backend, which was prone to silent deployment breakage. -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<!-- 3-lives family recovery system assets: run/jump art per life-state, woman/man recovery
+     bonus item art, and the 오빠!/엄마! call-message overlay art. Loaded as plain-text .js
+     files that set window.* globals (double-base64-encoding workaround for pushing binary
+     image data through the GitHub Contents API as text) - must load before game.js. -->
+<script src="assets/char_run_1.js"></script>
+<script src="assets/char_run_2.js"></script>
+<script src="assets/char_jump_1.js"></script>
+<script src="assets/char_jump_2.js"></script>
+<script src="assets/char_jump_3.js"></script>
+<script src="assets/item_woman.js"></script>
+<script src="assets/item_man.js"></script>
+<script src="assets/call_oppa.js"></script>
+<script src="assets/call_mom.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

@@ -28,6 +28,12 @@
     touch-action:manipulation;
     -webkit-tap-highlight-color:transparent;
   }
+  /* full-screen fixed-layout game: block pinch-zoom/double-tap-zoom entirely so the
+     viewport never gets stuck zoomed in after an interaction (name-input focus, rapid
+     tapping, etc.) - "manipulation" alone still allows pinch-zoom. */
+  #stage{
+    touch-action:none;
+  }
   html{height:100%;}
 
   /* ---- kill mobile "text selection" artifacts: fast/repeated tapping (jump button
@@ -948,7 +954,10 @@
     flex:1 1 auto;
     min-width:0;
     font-family:'Nunito',sans-serif;
-    font-size:14px;
+    /* iOS Safari auto-zooms the whole page in when a focused input's font-size is under
+       16px, and doesn't reliably zoom back out afterward - this is what was stretching
+       the layout after game-over. 16px keeps iOS from ever triggering that zoom. */
+    font-size:16px;
     padding:9px 10px;
     border:2px solid var(--panel-border);
     border-radius:10px;

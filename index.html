@@ -49,7 +49,12 @@
 
   <div id="startScreen" class="overlay" hidden>
     <div class="card">
-      <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
+      <div class="start-banner-wrap">
+        <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
+        <div class="visit-badge" id="visitBadge" hidden>
+          <span id="visitToday">오늘 -</span><span class="dot">·</span><span id="visitTotal">누적 -</span>
+        </div>
+      </div>
       <button class="primary" id="startBtn" type="button">시작하기</button>
       <div class="leaderboard" id="top3Board">
         <div class="leaderboard-title">🏆 TOP 3</div>
@@ -57,7 +62,7 @@
         <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
       </div>
       <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
-      <p class="credit">본 게임은 AI 도구를 활용해 제작되었으며, 비영리 목적으로 운영되어 수익을 창출하지 않습니다.</p>
+      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
     </div>
   </div>
 
@@ -84,7 +89,7 @@
 
       <button class="primary" id="retryBtn" type="button">다시하기</button>
       <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
-      <p class="credit">본 게임은 AI 도구를 활용해 제작되었으며, 비영리 목적으로 운영되어 수익을 창출하지 않습니다.</p>
+      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
     </div>
   </div>
 </div>

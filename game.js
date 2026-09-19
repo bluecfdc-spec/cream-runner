@@ -330,6 +330,14 @@
   };
   firebase.initializeApp(firebaseConfig);
   var db = firebase.firestore();
+  // KakaoTalk/Instagram in-app browsers (and some carrier networks) often block or badly
+  // throttle WebSockets, which is what Firestore's realtime channel tries first by default -
+  // when that happens the SDK has to detect the failure and fall back to long-polling, and
+  // that detection/fallback dance is exactly what was showing up as "느리다 / 순위를 불러오지
+  // 못했어요 / 재시작해야 갱신됨" for players opening the game from a chat app link. Forcing
+  // auto-detected long-polling skips that slow negotiation and connects reliably in those
+  // in-app browsers too, at the cost of a small amount of extra latency on a normal network.
+  db.settings({ experimentalAutoDetectLongPolling: true, useFetchStreams: false });
   var SCORES_COLLECTION = 'scores';
   var lastFinalScore = null;
   var lastFinalDate = null;
@@ -389,7 +397,7 @@
   // call is allowed to hang before we give up on it and show the "couldn't load" state
   // instead - it never rejects, it just resolves with null once the time is up, so callers
   // can gate revealing a screen on it without ever hanging forever.
-  var FETCH_TIMEOUT_MS = 8000;
+  var FETCH_TIMEOUT_MS = 15000;
 
   function withTimeout(promise, timeoutMs){
     return new Promise(function(resolve){
@@ -474,7 +482,7 @@
     submitNameBtn.textContent = '등록 중...';
     withTimeout(
       db.collection(SCORES_COLLECTION).add({ name: name, score: lastFinalScore, date: lastFinalDate }),
-      10000
+      15000
     ).then(function(ref){
       if (ref === null){
         throw new Error('timeout');

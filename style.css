@@ -1031,3 +1031,23 @@
     padding:6px 0;
   }
   [hidden]{ display:none !important; }
+
+  /* ---- loading overlay: shown while fetching the leaderboard from the Google Sheet
+     backend, so the start/game-over screen only ever appears once its data is actually
+     ready - instead of appearing right away with a "불러오는 중..." line buried inside it
+     that people don't notice while the fetch is still running in the background. ---- */
+  .loading-overlay{
+    z-index:20;
+    background:rgba(30,40,60,.55);
+  }
+  .loading-spinner{
+    width:52px;
+    height:52px;
+    border:6px solid rgba(255,255,255,.32);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:loadingSpin .75s linear infinite;
+  }
+  @keyframes loadingSpin{
+    to{ transform:rotate(360deg); }
+  }

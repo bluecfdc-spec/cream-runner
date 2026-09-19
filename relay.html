@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>cream-runner relay</title></head>
+<body>
+<script>
+(function(){
+  "use strict";
+  var API_URL = 'https://script.google.com/macros/s/AKfycby8ffNr-dfwMFx9jE-HNGYR8hT1H9HVtkfx3ZD7iCl4jIkRQbUGAYWfLhtasHXo_NPH/exec';
+
+  window.addEventListener('message', function(ev){
+    var msg = ev.data;
+    if (!msg || msg.__creamRunnerRelay !== true) return;
+    var reqId = msg.reqId;
+    var replyTo = ev.source;
+    var replyOrigin = ev.origin;
+    function send(result){
+      try { replyTo.postMessage({ __creamRunnerRelay: true, reqId: reqId, result: result }, replyOrigin); } catch (e) {}
+    }
+    if (msg.action === 'get') {
+      fetch(API_URL, { method: 'GET' })
+        .then(function(r){ return r.json(); })
+        .then(function(data){ send({ ok: true, data: data }); })
+        .catch(function(e){ send({ ok: false, error: String(e) }); });
+    } else if (msg.action === 'post') {
+      fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(msg.payload || {})
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(data){ send({ ok: true, data: data }); })
+        .catch(function(e){ send({ ok: false, error: String(e) }); });
+    }
+  });
+})();
+</script>
+</body>
+</html>

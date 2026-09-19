@@ -290,11 +290,19 @@
   var LEVEL_UP_SECONDS = 3;
   var LEVEL_UP_OBSTACLES = 8;
   var LEVEL_UP_FACTOR = 1.04;
+  // gentler ramp for the first EASE_WINDOW_SECONDS, per player feedback that the opening
+  // was too hard - then the ramp is paused entirely (plateau, no further speed-up at all)
+  // until DIFFICULTY_DELAY_SECONDS have passed, so the escalation originally reached
+  // around the 15s mark now shows up around 1:10 (70s) instead.
+  var EASE_WINDOW_SECONDS = 15;
+  var DIFFICULTY_DELAY_SECONDS = 55; // 15 + 55 = 70s
+  var EARLY_LEVEL_UP_FACTOR = 1.02;
   var speedMultiplier = 1;
   var gameTime = 0;
   var obstaclesPassed = 0;
   var lastLevelTime = 0;
   var lastLevelCount = 0;
+  var wasRampActive = true;
   // the BGM's main track picks up to a faster tempo right around 0:15 into the song - rather
   // than a single jarring jump right at that instant, we smoothly ramp an extra speed boost
   // in underneath, starting a couple seconds in and finishing by 0:15, so the game already
@@ -508,6 +516,7 @@
     obstaclesPassed = 0;
     lastLevelTime = 0;
     lastLevelCount = 0;
+    wasRampActive = true;
     musicRampProgress = 0;
     dodgeGauge = 0;
     invincible = false;
@@ -530,6 +539,10 @@
   }
 
   function startGame(){
+    // belt-and-suspenders: if the name input still has focus from the previous
+    // game-over screen, drop focus before restarting so no lingering iOS zoom/keyboard
+    // state carries into the new game.
+    if (nameInput && document.activeElement === nameInput) nameInput.blur();
     ensureAudio();
     startMusic();
     reset();
@@ -698,11 +711,11 @@
     // should follow a poop, that's handled as a tightly-paired "combo" inside
     // spawnGroundObstacle instead, so the dog is always either combined with a poop
     // (one jump) or fully on its own.
-    var wDog = (gameTime > 3 && lastSpawnType !== 'poop' && lastSpawnType !== 'dog') ? (0.14 + 0.08 * diff) : 0;
+    var wDog = (gameTime > 5 && lastSpawnType !== 'poop' && lastSpawnType !== 'dog') ? (0.14 + 0.08 * diff) : 0;
     // crow: a real ground-level hazard (taller than the dog, forces an actual jump) mixed
     // into the same pool as everything else, so it automatically gets the same safe-gap
     // spacing as poop/dog - never back-to-back with another crow.
-    var wCrow = (gameTime > 7 && lastSpawnType !== 'crow') ? (0.16 + 0.06 * diff) : 0;
+    var wCrow = (gameTime > 10 && lastSpawnType !== 'crow') ? (0.16 + 0.06 * diff) : 0;
     var wPoop = Math.max(0.2, 1 - wStar - wDog - wCrow);
     var total = wStar + wDog + wCrow + wPoop;
     var r = Math.random() * total;
@@ -866,7 +879,7 @@
     // a dog can never immediately follow another dog (combo or standalone) - guarantees at
     // least one dog-free obstacle between any two dogs, so they can never chain back to back
     // into something genuinely undodgeable.
-    if (!skipCombo && gameTime > 5 && prevType !== 'dog' && Math.random() < DOG_COMBO_CHANCE){
+    if (!skipCombo && gameTime > 7 && prevType !== 'dog' && Math.random() < DOG_COMBO_CHANCE){
       var safeSpeed = BASE_SPEED * speedMultiplier * (1 - SPEED_WAVE_AMPLITUDE);
       var singleHang = 2 * Math.sqrt(2 * JUMP_PEAK_1 / GRAVITY);
       // 62% of the true hang time leaves real reaction margin instead of cutting it exactly,
@@ -914,11 +927,26 @@
         }
       }
 
-      if (gameTime - lastLevelTime >= LEVEL_UP_SECONDS ||
-          obstaclesPassed - lastLevelCount >= LEVEL_UP_OBSTACLES){
+      // ramp is active during the first EASE_WINDOW_SECONDS (at a gentler rate), then paused
+      // (plateau) until DIFFICULTY_DELAY_SECONDS have elapsed, then resumes at the normal rate -
+      // see the constants above for why.
+      var rampActive = (gameTime <= EASE_WINDOW_SECONDS) ||
+                        (gameTime > EASE_WINDOW_SECONDS + DIFFICULTY_DELAY_SECONDS);
+      if (rampActive && !wasRampActive){
+        // just came off the plateau - restart the level-up counters from right now so the
+        // first tick afterward doesn't fire a backlog of level-ups all at once.
         lastLevelTime = gameTime;
         lastLevelCount = obstaclesPassed;
-        speedMultiplier *= LEVEL_UP_FACTOR;
+      }
+      wasRampActive = rampActive;
+
+      if (rampActive &&
+          (gameTime - lastLevelTime >= LEVEL_UP_SECONDS ||
+           obstaclesPassed - lastLevelCount >= LEVEL_UP_OBSTACLES)){
+        lastLevelTime = gameTime;
+        lastLevelCount = obstaclesPassed;
+        var levelUpFactor = (gameTime <= EASE_WINDOW_SECONDS) ? EARLY_LEVEL_UP_FACTOR : LEVEL_UP_FACTOR;
+        speedMultiplier *= levelUpFactor;
       }
       var waveFactor = 1 + SPEED_WAVE_AMPLITUDE * Math.sin((gameTime / SPEED_WAVE_PERIOD) * Math.PI * 2);
       speed = Math.min(MAX_SPEED, BASE_SPEED * speedMultiplier * waveFactor);

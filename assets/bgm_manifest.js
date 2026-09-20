@@ -19,13 +19,25 @@ window.BGM_FOLDER = 'assets/bgm/';
 window.BGM_OPEN = { file: 'open_fix.mp3.mp3', title: '동물의 숲 OST' };
 
 // ---- 본편 재생 목록 (이 순서 그대로, 무작위 없음) ----
-// 오프닝 30초 + 87초 + 154초 + 96초 = 총 6분 7초 지점에 보스가 등장한다.
-// 곡을 빼거나 짧게 자른 파일로 바꾸면 보스가 그만큼 빨라진다.
+// 오프닝 30초 + 87초 + 86초 + 96초 = 299초. 곡 전환마다 페이드로 2초씩 잘리므로 보스는
+// 약 4분 52초에 등장한다 (그때 난이도 배수 약 26.5).
+// 하드 구간 콤보가 물리적으로 불가능해지는 지점이 배수 30~32(약 5분 5초)이므로, 지금
+// 구성은 그 벽에 닿기 직전에 보스가 나오는 배치다. 여기서 곡을 더 늘리면 왕까지 도달할 수
+// 없게 되니, 길이를 늘릴 때는 tune.js의 하드 난이도(똥/쥐)를 같이 내려야 한다.
 window.BGM_PLAYLIST = [
   { file: 'frieren_op2.mp3', title: '장송의 프리렌 2기 OST - SUNNY - YOASOBI' },
-  { file: 'muhansung_ost.mp3', title: '귀멸의 칼날 무한성진입 OST' },
+  { file: 'kimetsu_op2.mp3', title: '귀멸의 칼날 2기 OST - 잔향산가 - LiSA' },
   { file: 'aot_op1.mp3', title: '진격의 거인 1기 OST - 홍련의 화살 - Linked Horizon' }
 ];
+
+// ---- 지금 쓰지 않는 음원 (파일은 assets/bgm/ 에 그대로 있음) ----
+// kimetsu_op1.mp3       귀멸의 칼날 1기 OST - 홍련화 - LiSA (87초)
+// frieren_op1.mp3       장송의 프리렌 1기 OST - 용사 - YOASOBI (86초)
+// aot_op2.mp3           진격의 거인 2기 OST - 신조사사귀오 (89초)
+// evangelion_op.mp3     신세기 에반게리온 OP - 잔혹한 천사의 테제 (89초)
+// muhansung_ost.mp3     귀멸의 칼날 무한성진입 OST (154초 - 너무 길어서 제외)
+// onepunchman_theme.mp3 원펀맨 메인 Theme - 정의집행 (82초)
+// 위 목록의 한 줄을 BGM_PLAYLIST 안에 { file: '...', title: '...' } 형태로 넣으면 바로 추가된다.
 
 // ---- 예전 방식(무작위 2단 사이클) 참고용 ----
 // 위의 BGM_PLAYLIST 줄을 지우면 아래 두 배열이 쓰이면서, 1차 사이클 곡들이 무작위로 전부

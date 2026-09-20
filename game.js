@@ -583,6 +583,18 @@
   // 이미 5,000점을 훨씬 넘겨서 하드 구간이므로, ?boss=1도 같은 조건이어야 테스트가 맞다.
   var HARD_MODE_SCORE = TEST_MODE ? 1 : (window.HARD_MODE_SCORE || 10000);
   var POOP_HARD_SCALE = window.POOP_HARD_SCALE || 1.15;
+  // 똥 판정 박스: 그림은 그대로 두고 판정만 줄인다. 핑크똥 그림은 아래가 넓고 위로 갈수록
+  // 가늘어지는 모양이라, 그림 사각형 전체를 판정으로 쓰면 "똥 머리 위 허공"에 부딪혀 죽는다.
+  // 상단 28%와 좌우 각 18%를 판정에서 제외한다 (1.0 / 0.08 이 예전 값).
+  var POOP_HIT_TOP_FRAC = window.POOP_HIT_TOP_FRAC || 0.72;
+  var POOP_HIT_SIDE_FRAC = window.POOP_HIT_SIDE_FRAC || 0.18;
+  // 콤보(똥 바로 뒤 쥐) 간격을 "점프 한 번의 체공시간" 대비 비율로 정의한다. 픽셀이 아니라
+  // 점프 길이 기준이라 속도가 어떻게 바뀌어도 똥과 쥐의 간격이 항상 똑같이 느껴진다.
+  var COMBO_GAP_FRAC = window.COMBO_GAP_FRAC || 0.40;
+  // 어려운 조합(똥+쥐 콤보)이 나올 확률. 하드 구간에서 서서히 올라간다. 점프 물리는 고정해
+  // 두고 "조합"으로만 난이도를 올리기 위한 장치다 (COMBO_RAMP_MULT 배수에서 최대치).
+  var DOG_COMBO_CHANCE_MAX = window.DOG_COMBO_CHANCE_MAX || 0.60;
+  var COMBO_RAMP_MULT = window.COMBO_RAMP_MULT || 20;
   var MOUSE_HOP_PEAK_FRAC = window.MOUSE_HOP_PEAK_FRAC || (1 / 3); // 플레이어 점프 높이 대비
   var MOUSE_HOP_X_START_FRAC = window.MOUSE_HOP_X_START_FRAC || 0.50; // appW 기준 도약 시작 지점
   var MOUSE_HOP_X_END_FRAC = window.MOUSE_HOP_X_END_FRAC || 0.02; // appW 기준 착지 지점
@@ -590,6 +602,15 @@
   var MOUSE_HOP_X0 = 0; // set for real in layout()
   var MOUSE_HOP_X1 = 0; // set for real in layout()
   function hardMode(){ return score >= HARD_MODE_SCORE; }
+  // 하드 구간 동안 "똥+쥐 콤보"가 나올 확률이 서서히 올라간다. 점프 물리는 고정되어 있어서
+  // 각 패턴의 정답과 타이밍 여유는 변하지 않고, 어려운 조합을 만나는 빈도만 높아진다.
+  // 즉 "타이밍을 못 잡아서" 죽는 게 아니라 "리듬 타다가 패턴이 바뀌어서" 죽게 된다.
+  function comboChance(){
+    if (!hardMode()) return DOG_COMBO_CHANCE;
+    var span = Math.max(0.001, COMBO_RAMP_MULT - GRAVITY_CAP_MULT);
+    var p = Math.min(1, Math.max(0, (speedMultiplier - GRAVITY_CAP_MULT) / span));
+    return DOG_COMBO_CHANCE + (DOG_COMBO_CHANCE_MAX - DOG_COMBO_CHANCE) * p;
+  }
 
   // ---- 최종 보스전 (엔딩) ----
   // 2차 사이클의 마지막 곡이 끝나기 5초 전부터 이 순서로 진행된다:
@@ -689,6 +710,19 @@
   // ---- speed-scaled jump snap: higher speed = shorter hang time (same jump height) ----
   var BASE_GRAVITY = 2300; // set for real in layout(), scaled to box height
   var GRAVITY_SPEED_SCALE = 0.35; // e.g. speedMultiplier 2.0 -> ~35% more gravity -> snappier, shorter jumps
+  // ---- 중력 상한 (아주 중요) ----
+  // 스크롤 속도는 MAX_SPEED 때문에 배수 2.45(약 1분 50초)에서 멈춘다. 그런데 중력은 배수를
+  // 따라 끝없이 커지게 되어 있었다. 그러면 "세상은 더 이상 빨라지지 않는데 내 점프만 계속
+  // 짧아지는" 상태가 되어, 보스 도달 시점에는 장애물이 몸을 스쳐 지나가는 시간(248ms)이
+  // 점프 체공(205ms)보다 길어져 어떤 장애물도 사람이 넘을 수 없게 된다 (프레임 단위로
+  // 정확히 눌러야만 가능). 그래서 중력도 같이 상한을 둔다. 이 시점 이후로는 점프 궤적이
+  // 고정되므로, 같은 패턴의 "정답"(1탭 / 2연타 / 1탭+착지+2연타)이 보스까지 변하지 않는다.
+  // 난이도는 대신 조합 빈도(comboChance)로 올린다.
+  var GRAVITY_CAP_MULT = window.GRAVITY_CAP_MULT || 4;
+  function gravityFor(mult){
+    var m = Math.min(mult, GRAVITY_CAP_MULT);
+    return BASE_GRAVITY * (1 + GRAVITY_SPEED_SCALE * (m - 1));
+  }
 
   // ---- 개모차 gauge: every clean dodge fills the gauge a little; full gauge auto-triggers
   // invincibility instead of the old dodge-streak that just visually reset (and felt
@@ -1081,7 +1115,7 @@
     // double jump reliably reaches JUMP_PEAK_2 no matter when the 2nd press lands (see doJump).
     var gravityFactor = 7.83; // lower = longer, floatier hang time (~+0.1s airtime vs. before)
     BASE_GRAVITY = gravityFactor * appH;
-    GRAVITY = BASE_GRAVITY * (1 + GRAVITY_SPEED_SCALE * (speedMultiplier - 1));
+    GRAVITY = gravityFor(speedMultiplier);
     JUMP_PEAK_1 = appH * 0.40;
     JUMP_PEAK_2 = appH * 0.64;
 
@@ -1798,7 +1832,8 @@
     el.style.height = ph + 'px';
     el.innerHTML = '<img class="poop-img" src="' + IMG_POOP + '" alt="">';
     obstaclesLayer.appendChild(el);
-    obstacles.push({ el: el, x: x, w: pw, h: ph, elevation: 0, type: type });
+    obstacles.push({ el: el, x: x, w: pw, h: ph, elevation: 0, type: type,
+      hitTop: POOP_HIT_TOP_FRAC, hitSide: POOP_HIT_SIDE_FRAC });
     lastSpawnType = 'poop';
 
     // occasionally pair a dog tightly behind this poop so the two form a single combined
@@ -1816,13 +1851,16 @@
     // a dog can never immediately follow another dog (combo or standalone) - guarantees at
     // least one dog-free obstacle between any two dogs, so they can never chain back to back
     // into something genuinely undodgeable.
-    if (!skipCombo && gameTime > 7 && prevType !== 'dog' && Math.random() < DOG_COMBO_CHANCE){
-      var safeSpeed = BASE_SPEED * speedMultiplier * (1 - SPEED_WAVE_AMPLITUDE);
+    if (!skipCombo && gameTime > 7 && prevType !== 'dog' && Math.random() < comboChance()){
+      // 속도 상한(MAX_SPEED)을 반영한 "실제로 흐를 속도"를 써야 한다. 예전에는 상한을 무시한
+      // BASE_SPEED*배수를 써서, 배수가 커질수록 간격이 픽셀로 계속 벌어졌다. 그 결과 같은
+      // 콤보가 2분 19초에는 290ms 간격(붙어 있어 허둥지둥), 보스 앞에서는 929ms 간격(사실상
+      // 별개 장애물 둘)로 완전히 다른 패턴이 되어버렸다.
+      var safeSpeed = Math.min(MAX_SPEED, BASE_SPEED * speedMultiplier * (1 - SPEED_WAVE_AMPLITUDE));
       var singleHang = 2 * Math.sqrt(2 * JUMP_PEAK_1 / GRAVITY);
-      // 62% of the true hang time leaves real reaction margin instead of cutting it exactly,
-      // and the extra *0.8 pulls the whole gap in another 20% per direct feedback that it
-      // was landing too wide to clear.
-      var comboGap = safeSpeed * singleHang * 0.62 * 0.8;
+      // 체공시간의 COMBO_GAP_FRAC 만큼을 간격으로 쓴다. 0.40이면 "똥을 1탭으로 넘고 착지해서
+      // 쥐를 2연타로 넘기"까지 타이밍 허용 오차가 ±48ms 확보된다 (모바일 터치 오차 ±30~50ms).
+      var comboGap = safeSpeed * singleHang * COMBO_GAP_FRAC;
       var cx = x + pw + comboGap;
       var dh2 = DOG_H;
       var dw2 = dh2 * DOG_ASPECT;
@@ -1890,8 +1928,9 @@
 
       // as the run speeds up, jumps get a bit snappier (same height, shorter time in the air)
       // instead of staying floaty forever - otherwise a jump ends up covering more and more
-      // ground the faster things scroll, making later obstacles trivial to clear by accident
-      GRAVITY = BASE_GRAVITY * (1 + GRAVITY_SPEED_SCALE * (speedMultiplier - 1));
+      // ground the faster things scroll, making later obstacles trivial to clear by accident.
+      // GRAVITY_CAP_MULT 이후로는 더 커지지 않는다 (위 gravityFor 주석 참고).
+      GRAVITY = gravityFor(speedMultiplier);
 
       bgPosX -= speed * 0.5 * dt;
       sky.style.backgroundPositionX = bgPosX + 'px';
@@ -1933,7 +1972,11 @@
           // kept climbing. This keeps the safety margin (~0.21s of reaction buffer above the
           // minimum airtime) constant while letting spawn frequency keep rising for real.
           var singleHangSec = 2 * Math.sqrt(2 * JUMP_PEAK_1 / GRAVITY);
-          var minIntervalSec = singleHangSec + 0.21;
+          // 하드 구간에서는 도약하는 쥐를 넘으려면 2연타가 필수다. 그래서 하한을 1단 체공이
+          // 아니라 2단 점프 체공으로 잡아야 "치고 착지해서 다음 걸 칠 시간"이 실제로 생긴다
+          // (1단 기준으로 두면 2연타 후 휴식이 92ms밖에 안 남아 연속 쥐가 사실상 불가능해진다).
+          var airSec = hardMode() ? (2 * Math.sqrt(2 * JUMP_PEAK_2 / GRAVITY)) : singleHangSec;
+          var minIntervalSec = airSec + 0.21;
           var intervalSec = Math.max(minIntervalSec, gapPx / speed);
           nextSpawnIn = intervalSec * 1000;
 
@@ -2021,12 +2064,18 @@
           o.el.style.transform = 'translateY(-' + o.hop.toFixed(1) + 'px)';
         }
 
-        var oLeft = o.x + o.w * 0.08;
-        var oW = o.w * 0.84;
+        // 판정 박스는 그림 박스와 다를 수 있다 (o.hitTop / o.hitSide). 기본값은 예전과 같은
+        // 좌우 8% 제외 / 높이 전체이고, 똥만 상단 28% + 좌우 18%를 제외한다. oTop은 그림
+        // 기준이라 연출(불꽃/점수 팝업) 위치용으로 그대로 쓰고, 충돌 판정은 oHitTop을 쓴다.
+        var oSide = (o.hitSide == null) ? 0.08 : o.hitSide;
+        var oHitH = o.h * ((o.hitTop == null) ? 1 : o.hitTop);
+        var oLeft = o.x + o.w * oSide;
+        var oW = o.w * (1 - 2 * oSide);
         var oTop = groundTop - o.h - (o.elevation || 0) - (o.hop || 0);
+        var oHitTop = groundTop - oHitH - (o.elevation || 0) - (o.hop || 0);
 
         var overlapping = charLeft < oLeft + oW && charLeft + charW > oLeft &&
-          charTop < oTop + o.h && charTop + charH > oTop;
+          charTop < oHitTop + oHitH && charTop + charH > oHitTop;
 
         // the air-lane star is a pure bonus pickup now, not a hazard - collecting it
         // never hurts (jumping or not), just adds points and disappears with a little fx.

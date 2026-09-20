@@ -21,7 +21,7 @@
       <div id="scoreBox">점수 <span id="scoreVal">0</span></div>
     </div>
     <div id="bgmHud">
-      <img id="bgmCdImg" src="assets/bgm/cd.png" alt="">
+      <img id="bgmCdImg" alt="">
       <div id="bgmTitleWrap">
         <div id="bgmTitleTrack">
           <span class="bgmTitleCopy">-</span>
@@ -133,6 +133,22 @@
 <script src="assets/item_man.js"></script>
 <script src="assets/call_oppa.js"></script>
 <script src="assets/call_mom.js"></script>
+<!-- 점수 구간 돌파(1,000/5,000/10,000점) 축하 이미지 + BGM CD 이미지: 배경을 지운 WebP를
+     base64 문자열로 담아둔 파일들 (위 캐릭터 이미지들과 같은 방식). 한 장이 여러 조각(_pN)으로
+     나뉘어 순서대로 이어붙여지므로 순서를 바꾸면 안 되고, game.js보다 먼저 로드되어야 한다. -->
+<script src="assets/milestone_1000_p1.js"></script>
+<script src="assets/milestone_1000_p2.js"></script>
+<script src="assets/milestone_1000_p3.js"></script>
+<script src="assets/milestone_5000_p1.js"></script>
+<script src="assets/milestone_5000_p2.js"></script>
+<script src="assets/milestone_5000_p3.js"></script>
+<script src="assets/milestone_5000_p4.js"></script>
+<script src="assets/milestone_5000_p5.js"></script>
+<script src="assets/milestone_10000_p1.js"></script>
+<script src="assets/milestone_10000_p2.js"></script>
+<script src="assets/milestone_10000_p3.js"></script>
+<script src="assets/milestone_10000_p4.js"></script>
+<script src="assets/bgm_cd.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

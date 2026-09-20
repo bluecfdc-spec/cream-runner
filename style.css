@@ -79,8 +79,15 @@
     justify-content:center;
   }
 
+  /* 위/아래 여백은 원래 1:1로 남은 공간을 나눠 가졌다. 상단을 줄여서 플레이 화면(#app)을
+     위로 올리고, 그만큼 하단에 공간을 줘서 게이지 아래에 진행도 바가 들어갈 자리를 만든다.
+     합이 2로 유지되므로 #app의 크기 자체는 전혀 변하지 않고 위치만 올라간다. */
   #topSpace{
     background:linear-gradient(180deg,#dff1fb,#eef6e6);
+    flex-grow:.65;
+  }
+  #bottomSpace{
+    flex-grow:1.35;
   }
 
   .sun{
@@ -810,6 +817,84 @@
     z-index:2;
   }
   #gaugeRider[hidden]{ display:none; }
+
+  /* ---- 왕(보스)까지 진행도 바: 개모차 게이지 바로 아래 ----
+     곡 목록(오프닝 + 본편)에서 몇 번째 곡의 어디까지 왔는지로 채운다. 마지막 곡이 끝나는
+     순간이 곧 보스 등장이라 100%가 정확히 왕을 만나는 시점이다. 게이지와 역할이 다르므로
+     (게이지=내가 모으는 것 / 진행도=시간이 흐르는 것) 더 얇고 차분한 보라색으로 구분한다. */
+  #bossProgWrap{
+    position:absolute;
+    top:64px;
+    left:10px;
+    right:10px;
+    z-index:4;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(255,249,238,.78);
+    border:2px solid rgba(31,43,61,.26);
+    border-radius:13px;
+    padding:4px 10px;
+    box-shadow:0 2px 0 rgba(31,43,61,.1);
+  }
+  .bp-label{
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    font-size:12px;
+    line-height:1;
+    color:#5f4b8b;
+    flex:0 0 auto;
+  }
+  #bossProgTrack{
+    position:relative;
+    flex:1 1 auto;
+    height:9px;
+    border-radius:5px;
+    background:rgba(90,106,134,.2);
+    overflow:hidden;
+  }
+  #bossProgFill{
+    height:100%;
+    width:0%;
+    border-radius:5px;
+    background:linear-gradient(90deg,#a48be0,#6b3fa0);
+    transition:width .25s linear;
+  }
+  /* display:flex 가 [hidden] 을 이기므로 명시적으로 숨김 처리 (layout()에서 좁은 화면일 때 숨긴다) */
+  #bossProgWrap[hidden]{ display:none; }
+  #bossProgMarks{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+  #bossProgMarks i{
+    position:absolute;
+    top:0;
+    bottom:0;
+    width:2px;
+    margin-left:-1px;
+    background:rgba(255,249,238,.8);
+  }
+  #bossProgGoal{
+    width:24px;
+    height:24px;
+    object-fit:contain;
+    flex:0 0 auto;
+    filter:grayscale(.6) brightness(.9) drop-shadow(0 1px 1px rgba(20,20,20,.3));
+    transition:filter .35s ease, transform .35s ease;
+  }
+  /* 왕이 등장하는 순간: 흑백이던 악마가 제 색으로 살아나면서 커진다 */
+  #bossProgWrap.arrived #bossProgGoal{
+    filter:drop-shadow(0 0 7px rgba(170,70,230,.95));
+    transform:scale(1.22);
+  }
+  #bossProgWrap.arrived #bossProgFill{
+    animation:bossProgPulse .42s ease-in-out infinite alternate;
+  }
+  @keyframes bossProgPulse{
+    from{ filter:brightness(1); }
+    to{ filter:brightness(1.45); }
+  }
   @keyframes gaugeRiderWobble{
     from{ transform:translate(-50%,-50%) rotate(-7deg) translateY(0); }
     to{   transform:translate(-50%,-50%) rotate(7deg) translateY(-2px); }

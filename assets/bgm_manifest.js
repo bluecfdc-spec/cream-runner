@@ -9,21 +9,21 @@
 window.BGM_FOLDER = 'assets/bgm/';
 
 // 게임을 시작하면 항상 고정으로 먼저 재생되는 곡
-window.BGM_OPEN = { file: 'open_fix.mp3', title: '오프닝곡' };
+window.BGM_OPEN = { file: 'open_fix.mp3', title: '동물의 숲 OST' };
 
 // 아래 중간 곡들이 무작위 순서로 한 번씩 모두 재생된 뒤, 무한 반복되는 마지막 곡
-window.BGM_END = { file: 'end_fix.mp3', title: '마지막곡' };
+window.BGM_END = { file: 'end_fix.mp3', title: '무한루프' };
 
 // 매 게임마다 무작위 순서로 한 번씩 재생되는 중간 곡들 - 이 배열에 한 줄 추가하면 바로
 // 랜덤 구간에 끼어 들어가고, 한 줄 지우면 빠집니다. 곡 수 제한은 따로 없습니다.
 window.BGM_MIDDLE = [
-  { file: 'evangelion_op.mp3',     title: '에반게리온 OP' },
-  { file: 'onepunchman_theme.mp3', title: '원펀맨 OP' },
-  { file: 'frieren_op1.mp3',       title: '장송의 프리렌 OP1' },
-  { file: 'frieren_op2.mp3',       title: '장송의 프리렌 OP2' },
-  { file: 'aot_op1.mp3',           title: '진격의 거인 OP1' },
-  { file: 'aot_op2.mp3',           title: '진격의 거인 OP2' },
-  { file: 'kimetsu_op1.mp3',       title: '귀멸의 칼날 OP1' },
-  { file: 'kimetsu_op2.mp3',       title: '귀멸의 칼날 OP2' },
-  { file: 'muhansung_ost.mp3',     title: '무한성 OST' }
+  { file: 'evangelion_op.mp3',     title: '신세기 에반게리온 OP - 잔혹한 천사의 테제 - 타카하시 요코' },
+  { file: 'onepunchman_theme.mp3', title: '원펀맨 메인 Theme - 정의집행 - Makoto Miyazaki' },
+  { file: 'frieren_op1.mp3',       title: '장송의 프리렌 1기 OST - 용사 - YOASOBI' },
+  { file: 'frieren_op2.mp3',       title: '장송의 프리렌 2기 OST - SUNNY - YOASOBI' },
+  { file: 'aot_op1.mp3',           title: '진격의 거인 1기 OST - 홍련의 화살 - Linked Horizon' },
+  { file: 'aot_op2.mp3',           title: '진격의 거인 2기 OST - 신조사사귀오 - Linked Horizon' },
+  { file: 'kimetsu_op1.mp3',       title: '귀멸의 칼날 1기 OST - 홍련화 - LiSA' },
+  { file: 'kimetsu_op2.mp3',       title: '귀멸의 칼날 2기 OST - 잔향산가 - LiSA' },
+  { file: 'muhansung_ost.mp3',     title: '귀멸의 칼날 무한성진입 OST' }
 ];

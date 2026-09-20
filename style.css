@@ -353,7 +353,7 @@
   .ko-pop-fx{
     position:absolute;
     pointer-events:none;
-    font-size:24px;
+    font-size:31px; /* +500 으로 바뀌면서 30% 키움 (기존 24px) */
     font-weight:800;
     font-family:'Baloo 2',sans-serif;
     transform:translate(-50%,-50%);
@@ -1122,6 +1122,21 @@
     overflow:hidden;
     text-overflow:ellipsis;
   }
+  /* 왕을 잡고 클리어한 기록은 이름 앞에 금색 "클리어" 배지가 붙는다. 저장은 이름 문자열
+     앞에 "클리어 "를 붙이는 방식이라 Firebase 쪽 구조를 바꾸지 않는다 (game.js의 CLEAR_TAG). */
+  .leaderboard-list .lb-clear{
+    display:inline-block;
+    margin-right:5px;
+    padding:1px 5px;
+    border-radius:6px;
+    background:linear-gradient(180deg,#ffd166,var(--accent-deep));
+    color:#fff;
+    font-family:'Baloo 2',sans-serif;
+    font-size:10px;
+    font-weight:800;
+    vertical-align:middle;
+    box-shadow:0 1px 0 rgba(160,100,10,.5);
+  }
   .leaderboard-list .lb-score{
     flex:0 0 auto;
     font-variant-numeric:tabular-nums;
@@ -1204,4 +1219,97 @@
     24%{  opacity:1; transform:scale(1) rotate(0deg); }
     72%{  opacity:1; transform:scale(1) rotate(0deg); }
     100%{ opacity:0; transform:scale(1.06) translateY(-14%); }
+  }
+
+  /* ---- 최종 보스전 (엔딩) ----------------------------------------------------------------
+     보스는 일반 똥처럼 바닥에 붙어 있지만 2단 점프 최고점보다 높아서 넘어갈 수 없는 벽이다
+     (높이는 game.js의 BOSS_H_FRAC). 무적으로 부딪히면 일반 장애물처럼 날아가지 않고
+     제자리에서 다운 이미지로 바뀌며 한 번 크게 흔들린다. ---- */
+  .obstacle.boss{
+    filter:none;
+  }
+  .obstacle.boss .boss-img{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    object-position:bottom;
+    filter:drop-shadow(0 6px 9px rgba(20,20,20,.45));
+  }
+  .obstacle.boss .boss-img{
+    animation:bossIdle 1.1s ease-in-out infinite alternate;
+  }
+  @keyframes bossIdle{
+    from{ transform:translateY(0) scale(1); }
+    to{   transform:translateY(-1.5%) scale(1.012); }
+  }
+  .obstacle.boss.downed .boss-img{
+    animation:bossDown .55s cubic-bezier(.2,.8,.3,1) forwards;
+  }
+  @keyframes bossDown{
+    0%{   transform:translateY(-6%) scale(1.06) rotate(-4deg); }
+    45%{  transform:translateY(2%)  scale(.98)  rotate(3deg); }
+    100%{ transform:translateY(0)   scale(1)    rotate(0deg); }
+  }
+
+  /* 유모차 예고: 까마귀의 빨간 경고(위험)와 달리 "먹어야 한다"는 신호라서, 아이템 뒤에
+     깔리는 금색 별과 같은 톤으로 맞췄다. 글자 크기는 JS에서 화면 높이에 맞춰 지정한다. */
+  .stroller-notice{
+    position:absolute;
+    left:50%;
+    top:15%;
+    z-index:9;
+    pointer-events:none;
+    display:flex;
+    align-items:center;
+    gap:.3em;
+    white-space:nowrap;
+    font-family:'Baloo 2',sans-serif;
+    font-weight:800;
+    color:#fff6d8;
+    text-shadow:0 0 .1em #ffb300, 0 0 .28em rgba(255,179,0,.95), 0 2px .1em rgba(70,35,0,.55);
+    animation:strollerNotice .5s ease-in-out infinite alternate;
+  }
+  .stroller-notice .sn-star{
+    color:#ffd166;
+    text-shadow:0 0 .18em #ffd166, 0 0 .42em rgba(255,209,102,.95);
+  }
+  @keyframes strollerNotice{
+    from{ transform:translateX(-50%) scale(1);    opacity:.92; }
+    to{   transform:translateX(-50%) scale(1.09); opacity:1; }
+  }
+
+  /* 유모차 아이템: 트릿통/가족 아이템과 같은 'obstacle star' 연출을 쓰지만, 놓치면 클리어가
+     불가능한 단 하나의 아이템이라 별과 빛을 훨씬 강하게 준다. */
+  .obstacle.final-stroller .star-behind{
+    width:240%;
+    height:240%;
+    opacity:1;
+    animation:starBehindSpin 2.2s linear infinite, starBehindPulse .45s ease-in-out infinite;
+  }
+  .obstacle.final-stroller .star-img{
+    filter:drop-shadow(0 0 .3em rgba(255,209,102,1)) drop-shadow(0 0 .7em rgba(255,209,102,.85)) drop-shadow(0 2px 2px rgba(20,20,20,.35));
+    animation:starTwinkle .55s ease-in-out infinite;
+  }
+
+  /* 클리어 축하 메시지: 10,000점 돌파 연출과 같은 자리(화면 X축 가운데)에 50% 더 크게.
+     돌파 연출과 달리 사라지지 않고 그대로 남는다 (게임이 여기서 끝나므로). */
+  .clear-msg-fx{
+    position:absolute;
+    pointer-events:none;
+    z-index:9;
+    filter:drop-shadow(0 6px 11px rgba(20,30,50,.45));
+    animation:clearMsgPop .8s cubic-bezier(.15,.85,.25,1) forwards;
+  }
+  .clear-msg-fx img{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+  @keyframes clearMsgPop{
+    0%{   opacity:0; transform:scale(.5)  rotate(-6deg); }
+    45%{  opacity:1; transform:scale(1.10) rotate(2deg); }
+    70%{  opacity:1; transform:scale(.98) rotate(0deg); }
+    100%{ opacity:1; transform:scale(1)   rotate(0deg); }
   }

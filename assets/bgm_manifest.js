@@ -7,7 +7,7 @@
 //
 // file과 title은 완전히 별개라서, 파일명은 영문으로 두고 화면에는 원하는 제목을 띄울 수 있습니다.
 //
-// 재생 순서:  open_fix  ->  1차 사이클(무작위)  ->  2차 사이클(무작위)  ->  end_fix
+// 재생 순서:  open_fix  ->  1차 사이클(무작위)  ->  2차 사이클(무작위)  ->  Final_Boss
 // 순서는 각 사이클 "안에서만" 섞입니다. 1차 사이클 곡이 전부 끝나야 2차 사이클로 넘어가고,
 // 사이클끼리의 앞뒤는 절대 바뀌지 않습니다.
 window.BGM_FOLDER = 'assets/bgm/';
@@ -26,7 +26,8 @@ window.BGM_CYCLE_1 = [
 ];
 
 // ---- 2차 사이클: 1차 사이클이 모두 끝난 뒤 이 5곡이 무작위 순서로 한 번씩 재생된다 ----
-// 이 사이클의 마지막 곡이 끝나면 아래 end_fix(추후 보스 음원)로 넘어간다.
+// 이 사이클의 마지막 곡이 끝나기 5초 전부터 엔딩 시퀀스(유모차 예고 -> 유모차 -> 보스)가
+// 시작되고, 곡이 완전히 끝나는 순간 아래 Final_Boss로 넘어간다.
 window.BGM_CYCLE_2 = [
   { file: 'aot_op1.mp3',           title: '진격의 거인 1기 OST - 홍련의 화살 - Linked Horizon' },
   { file: 'aot_op2.mp3',           title: '진격의 거인 2기 OST - 신조사사귀오 - Linked Horizon' },
@@ -35,5 +36,10 @@ window.BGM_CYCLE_2 = [
   { file: 'onepunchman_theme.mp3', title: '원펀맨 메인 Theme - 정의집행 - Makoto Miyazaki' }
 ];
 
-// 두 사이클이 모두 끝난 뒤 재생되는 마지막 곡 (현재는 무한 반복)
+// ---- 최종 보스 음원 ----
+// 2차 사이클의 마지막 곡이 완전히 끝나는 순간, 겹치지 않고 바로 시작해서 딱 한 번만
+// 재생된다 (반복 없음). 이 곡이 끝나면 BGM은 완전히 끝난다.
+window.BGM_FINAL_BOSS = { file: 'Final_Boss.mp3', title: 'FINAL BOSS' };
+
+// 예비용: BGM_FINAL_BOSS 파일이 없을 때만 대신 재생된다.
 window.BGM_END = { file: 'end_fix.mp3', title: '무한루프' };

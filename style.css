@@ -983,14 +983,22 @@
     border-radius:16px;
     box-shadow:0 6px 0 rgba(31,43,61,.14), 0 10px 20px rgba(31,43,61,.22);
   }
-  /* ---- visitor count badge: sits as a small pill overlaid on the top-right corner of the
-     start-screen banner art, so it adds zero extra vertical space to the card layout and
-     never competes with the start button / TOP3 board below it. ---- */
-  .visit-badge{
+  /* ---- 배너 오른쪽 위에 겹쳐 놓는 작은 표시들(방문자 수 / 만든 사람) ----
+     세로 한 줄로 쌓아서 오른쪽 정렬한다. 방문자 수는 집계를 못 불러오면 숨겨지는데,
+     이렇게 묶어두면 그때 "made by" 가 자연스럽게 위로 올라붙는다 (빈 자리가 안 생긴다).
+     카드 레이아웃에는 높이를 차지하지 않으므로 시작 버튼/TOP3 위치는 전혀 변하지 않는다. */
+  .banner-badges{
     position:absolute;
     top:8px;
     right:8px;
     z-index:1;
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:4px;
+    pointer-events:none;
+  }
+  .visit-badge{
     display:flex;
     align-items:center;
     gap:5px;
@@ -1007,6 +1015,20 @@
   }
   .visit-badge .dot{ opacity:.55; }
   .visit-badge[hidden]{ display:none; }
+  /* 만든 사람 표시. 방문자 수보다 한 단계 작고 연하게 해서 주인공인 배너 그림을 방해하지 않게. */
+  .made-by{
+    background:rgba(20,30,50,.45);
+    color:rgba(255,255,255,.92);
+    font-family:'Nunito',sans-serif;
+    font-weight:600;
+    font-size:9px;
+    line-height:1;
+    letter-spacing:.04em;
+    padding:4px 8px;
+    border-radius:999px;
+    box-shadow:0 2px 6px rgba(0,0,0,.2);
+    white-space:nowrap;
+  }
   .gameover-pic{
     display:block;
     width:112px;

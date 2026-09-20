@@ -6,15 +6,12 @@
 <title>크림이 러너</title>
 <link rel="stylesheet" href="style.css?v=12">
 <style>
-  /* 클리어 기록 표시: 금색 "클리어" 배지 대신 이름 자체를 파란 볼드로 보여준다.
+  /* 클리어 기록은 금색 "클리어" 배지와 파란 볼드 이름을 함께 보여준다.
      저장 구조(이름 앞에 "클리어 " 접두사)는 그대로라 Firebase 쪽은 건드리지 않는다.
-     :has()를 지원하지 않는 아주 낡은 브라우저에서는 기존 금색 배지가 그대로 보인다. */
+     :has()를 지원하지 않는 아주 낡은 브라우저에서는 배지만 보이고 색은 평소와 같다. */
   .leaderboard-list .lb-name:has(.lb-clear){
     color:#1d63c8;
     font-weight:800;
-  }
-  .leaderboard-list .lb-name:has(.lb-clear) .lb-clear{
-    display:none;
   }
 </style>
 </head>

@@ -394,6 +394,40 @@
     if (bgmCdImgEl) bgmCdImgEl.style.animationPlayState = state;
     if (bgmTitleTrackEl) bgmTitleTrackEl.style.animationPlayState = state;
   }
+  // ---- 왕(보스)까지 진행도 ----
+  // 곡 목록(오프닝 + 본편)에서 몇 번째 곡의 어디까지 왔는지로 계산한다. 곡 하나가 한 칸이고
+  // 마지막 곡이 끝나는 순간이 곧 보스 등장이므로, 100%가 정확히 왕을 만나는 시점이 된다.
+  // 곡 길이를 미리 알 필요가 없는 방식이라, 재생 목록을 바꿔도 여기는 고칠 것이 없다.
+  var bossProgWrapEl = document.getElementById('bossProgWrap');
+  var bossProgFillEl = document.getElementById('bossProgFill');
+  var bossProgMarksEl = document.getElementById('bossProgMarks');
+  function bossProgSet(pct){
+    if (!bossProgFillEl) return;
+    bossProgFillEl.style.width = Math.max(0, Math.min(100, pct)).toFixed(2) + '%';
+  }
+  // 곡 경계마다 눈금을 그린다 (몇 곡 남았는지 눈으로 보이게).
+  function bossProgBuildMarks(){
+    if (!bossProgMarksEl) return;
+    bossProgMarksEl.innerHTML = '';
+    for (var i = 1; i < bgmQueue.length; i++){
+      var m = document.createElement('i');
+      m.style.left = (i / bgmQueue.length * 100) + '%';
+      bossProgMarksEl.appendChild(m);
+    }
+  }
+  function bossProgUpdate(){
+    if (!bossProgFillEl) return;
+    if (bossMusicOn){ bossProgSet(100); return; }
+    var n = bgmQueue.length;
+    if (!n || bgmQueueIdx < 0){ bossProgSet(0); return; }
+    var el = bgmEls[bgmActive];
+    var frac = 0;
+    if (el && el.duration && !isNaN(el.duration) && el.duration > 0){
+      frac = Math.min(1, el.currentTime / el.duration);
+    }
+    bossProgSet((bgmQueueIdx + frac) / n * 100);
+  }
+
   function bgmPlayTrack(track, opts){
     opts = opts || {};
     if (!track) return;
@@ -426,6 +460,7 @@
     }
     bgmActive = nextIdx;
     bgmAdvancing = false;
+    bossProgUpdate();
   }
   function bgmAdvance(){
     bgmQueueIdx++;
@@ -474,7 +509,9 @@
   bgmEls.forEach(function(el){
     if (!el) return;
     el.addEventListener('timeupdate', function(){
-      if (bgmEls[bgmActive] === el) bgmCheckCrossfade(el);
+      if (bgmEls[bgmActive] !== el) return;
+      bgmCheckCrossfade(el);
+      bossProgUpdate();
     });
     el.addEventListener('ended', function(){
       if (bgmEls[bgmActive] !== el) return;
@@ -494,6 +531,9 @@
     stopMusic();
     bossMusicOn = false;
     bgmBuildQueue();
+    bossProgBuildMarks();
+    bossProgSet(0);
+    if (bossProgWrapEl) bossProgWrapEl.classList.remove('arrived');
     bgmAdvancing = false;
     bgmAdvance();
   }
@@ -566,6 +606,10 @@
   var bossPreload = new Image(); bossPreload.src = BOSS_IMG;
   var bossDownPreload = new Image(); bossDownPreload.src = BOSS_DOWN_IMG;
   var clearMsgPreload = new Image(); clearMsgPreload.src = CLEAR_MSG_IMG;
+  // 진행도 바 오른쪽 끝의 작은 왕 얼굴. 도달할 때까지는 흑백으로 깔려 있다가, 왕이 등장하는
+  // 순간 제 색으로 살아난다 (style.css의 #bossProgWrap.arrived 참고).
+  var bossProgGoalEl = document.getElementById('bossProgGoal');
+  if (bossProgGoalEl) bossProgGoalEl.src = BOSS_IMG;
   function bossAspect(){
     return (bossPreload.naturalWidth && bossPreload.naturalHeight)
       ? (bossPreload.naturalWidth / bossPreload.naturalHeight) : 1.018;
@@ -1047,6 +1091,13 @@
 
     BASE_SPEED = Math.max(150, appW * 0.368 * 1.05);
     MAX_SPEED = Math.max(360, appW * 0.9 * 1.05);
+
+    // 하단 여백이 아주 좁은 화면(가로로 긴 데스크톱 창처럼 #app이 높이를 거의 다 먹는 경우)
+    // 에서는 게이지 + 진행도 바 + 점프 버튼이 다 들어갈 자리가 없다. 그럴 때는 진행도 바를
+    // 숨겨서 점프 버튼을 가리지 않게 한다 (게이지는 게임 진행에 직접 쓰이므로 유지).
+    if (bossProgWrapEl && bottomSpace){
+      bossProgWrapEl.hidden = bottomSpace.getBoundingClientRect().height < 165;
+    }
   }
   window.addEventListener('resize', layout);
 
@@ -1091,6 +1142,8 @@
     bossSpawned = false;
     cleared = false;
     hideStrollerNotice();
+    bossProgSet(0);
+    if (bossProgWrapEl) bossProgWrapEl.classList.remove('arrived');
     character.classList.remove('invincible', 'invincible-warning');
     if (invincibleHud) invincibleHud.hidden = true;
     if (charCountdown) charCountdown.hidden = true;
@@ -1628,6 +1681,8 @@
     // fadeIn: 0에서 BOSS_FADE_IN_MS 동안 볼륨을 올린다 (앞 곡은 이미 페이드 아웃으로
     // 거의 무음이므로, 무음 -> 보스 음악으로 자연스럽게 이어진다).
     bgmPlayTrack(window.BGM_FINAL_BOSS || window.BGM_END, { instant: true, fadeIn: BOSS_FADE_IN_MS });
+    bossProgSet(100);
+    if (bossProgWrapEl) bossProgWrapEl.classList.add('arrived');
     if (state === 'playing') spawnBoss();
   }
 

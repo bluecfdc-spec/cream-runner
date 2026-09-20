@@ -279,16 +279,23 @@
   // ---- BGM v3: open_fix plays fixed at game start, then the tracks in assets/bgm_manifest.js
   // play once each - BGM_CYCLE_1 shuffled first, then BGM_CYCLE_2 shuffled (order is random
   // WITHIN each cycle, never between cycles) - and finally end_fix. Two <audio>
-  // elements are alternated so every track change can crossfade (BGM_FADE_MS, equal-power)
-  // instead of cutting sharply. The track list itself lives entirely in bgm_manifest.js so
+  // elements are alternated so every track change can hand off cleanly - the outgoing track
+  // fades all the way out, a short silence follows, then the next fades in (no overlap at all,
+  // see bgmBeginHandoff). The track list itself lives entirely in bgm_manifest.js so
   // adding/removing/swapping songs later - including swapping open_fix/end_fix - never
   // needs touching this file. Everything here runs off audio "timeupdate"/"ended" events and
   // a couple of short requestAnimationFrame fades, so it never touches the game loop and has
   // zero effect on play time or performance.
   var BGM_VOLUME = 0.55;
-  // 곡이 바뀔 때 겹쳐 재생되는 시간. 짧으면 "뚝 끊기고 갑자기 넘어간다"는 느낌이 나서
-  // 넉넉하게 잡았다 (assets/tune.js 에서 window.BGM_FADE_MS 로 조정 가능).
-  var BGM_FADE_MS = window.BGM_FADE_MS || 4000;
+  // 곡 전환 방식: 두 곡을 겹치는 크로스페이드가 아니라, 앞 곡을 완전히 페이드 아웃해서
+  // 끝낸 뒤 아주 짧은 무음을 두고 다음 곡을 페이드 인한다. 애니 OP처럼 조성/템포/악기가
+  // 전혀 다른 곡들이 겹치면 소리가 탁해져서 완성도가 떨어져 들리기 때문이다. 무음이 길면
+  // "음악이 끊겼나?" 싶으니 0.3초만 둔다. 세 값 모두 assets/tune.js 에서
+  // window.BGM_FADE_OUT_MS / BGM_GAP_MS / BGM_FADE_IN_MS 로 조정할 수 있다.
+  var BGM_FADE_OUT_MS = window.BGM_FADE_OUT_MS || 2000; // 앞 곡이 사라지는 시간
+  var BGM_GAP_MS = window.BGM_GAP_MS || 300; // 두 곡 사이 완전 무음 구간
+  var BGM_FADE_IN_MS = window.BGM_FADE_IN_MS || 2000; // 다음 곡이 올라오는 시간
+  var bgmGapTimer = null;
   var bgmEls = [document.getElementById('bgm-a'), document.getElementById('bgm-b')];
   var bgmActive = 0;
   var bgmQueue = [];
@@ -400,11 +407,11 @@
       bgmCancelFades();
       nextEl.volume = BGM_VOLUME;
       if (curEl) { try { curEl.pause(); } catch (e) {} }
-    } else if (curEl && !curEl.paused) {
-      bgmFade(curEl, curEl.volume, 0, BGM_FADE_MS, function(){ try { curEl.pause(); } catch (e) {} });
-      bgmFade(nextEl, 0, BGM_VOLUME, BGM_FADE_MS);
     } else {
-      nextEl.volume = BGM_VOLUME;
+      // 앞 곡은 bgmBeginHandoff에서 이미 페이드 아웃 후 정지된 상태다. 혹시라도 남아 있으면
+      // 여기서 확실히 멈춰서, 두 곡이 같이 들리는 순간이 단 한 프레임도 없게 만든다.
+      if (curEl && !curEl.paused) { try { curEl.pause(); } catch (e) {} }
+      bgmFade(nextEl, 0, BGM_VOLUME, BGM_FADE_IN_MS);
     }
     bgmActive = nextIdx;
     bgmAdvancing = false;
@@ -419,6 +426,21 @@
       beginFinalBoss();
     }
   }
+  // 곡 전환 1단계: 앞 곡을 끝까지 페이드 아웃하고 정지한 뒤, 짧은 무음을 두고 다음 곡을
+  // 시작한다 (2단계인 페이드 인은 bgmPlayTrack에서 한다). 이 구간 내내 bgmAdvancing이
+  // true로 유지되므로, 앞 곡의 'ended'가 뒤늦게 떠도 다음 곡이 두 번 시작되지 않는다.
+  function bgmBeginHandoff(){
+    var curEl = bgmEls[bgmActive];
+    if (!curEl || curEl.paused){ bgmAdvance(); return; }
+    bgmFade(curEl, curEl.volume, 0, BGM_FADE_OUT_MS, function(){
+      try { curEl.pause(); } catch (e) {}
+      if (bgmGapTimer) clearTimeout(bgmGapTimer);
+      bgmGapTimer = setTimeout(function(){
+        bgmGapTimer = null;
+        bgmAdvance();
+      }, BGM_GAP_MS);
+    });
+  }
   function bgmIsLastQueued(){
     return bgmQueueIdx >= 0 && bgmQueueIdx === bgmQueue.length - 1;
   }
@@ -428,14 +450,14 @@
     if (!el.duration || isNaN(el.duration)) return;
     var remain = el.duration - el.currentTime;
     if (bgmIsLastQueued()){
-      // 마지막 곡은 미리 크로스페이드로 넘기지 않는다. 곡이 완전히 끝나는 순간 보스 음원이
-      // 딱 시작해야 연출이 살고, 4초 페이드를 그대로 쓰면 유모차 등장 구간과 겹쳐버린다.
+      // 마지막 곡은 미리 넘기지 않는다. 곡이 완전히 끝나는 순간 보스 음원이 딱 시작해야
+      // 연출이 살고, 페이드 아웃을 걸면 유모차 등장 구간과 겹쳐버린다.
       checkFinalSequence(remain);
       return;
     }
-    if (remain <= BGM_FADE_MS / 1000 && !bgmAdvancing) {
+    if (remain <= BGM_FADE_OUT_MS / 1000 && !bgmAdvancing) {
       bgmAdvancing = true;
-      bgmAdvance();
+      bgmBeginHandoff();
     }
   }
   bgmEls.forEach(function(el){
@@ -466,6 +488,8 @@
   }
   function stopMusic(){
     bgmCancelFades();
+    // 무음 구간 중에 죽거나 다시하기를 누르면, 예약된 "다음 곡 시작"도 같이 취소한다.
+    if (bgmGapTimer){ clearTimeout(bgmGapTimer); bgmGapTimer = null; }
     bgmEls.forEach(function(el){ if (el) { try { el.pause(); } catch (e) {} } });
     bgmSetSpinning(false);
   }

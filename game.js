@@ -54,17 +54,23 @@
   var IMG_CROW_DOWN = "assets/img_crow_down.png";
 
   // ---- 테스트 모드 ----
-  // ?boss=1 : 랜덤 사이클을 건너뛰고 오프닝곡 하나만 재생한다. 그 곡이 곧 "마지막 곡"이 되어
-  // 15초 안에 유모차 예고 -> 유모차 -> 보스 -> 클리어까지 확인할 수 있다.
-  // ?hard=1 : 1만점 이후 난이도(쥐 점프/큰 똥)를 처음부터 켠다.
+  // ?boss=1 : 오프닝곡 하나만 재생해서 그 곡이 곧 "마지막 곡"이 된다. 곡 길이만 버티면
+  // 유모차 예고 -> 유모차 -> 보스 -> 클리어까지 확인할 수 있다.
+  // ?hard=1 : 하드 구간(쥐 도약/큰 똥)을 처음부터 켠다.
+  // ?safe=1 : 위 두 모드와 같이 쓸 때만 동작. 일반 장애물을 아예 만들지 않아서 죽지 않고
+  // 엔딩 연출만 관람할 수 있다 (?boss=1&safe=1).
   // 두 모드에서는 순위 등록과 방문자 집계를 하지 않아 실제 기록이 더러워지지 않는다.
-  var TEST_BOSS = false, TEST_HARD = false;
+  // 그리고 테스트가 의미 있으려면 "그 구간의 속도"여야 하므로, 시작 시점의 경과 시간과
+  // 난이도 배수를 실제 게임의 해당 지점 값으로 맞춰서 시작한다 (아래 TEST_START_SEC).
+  var TEST_BOSS = false, TEST_HARD = false, TEST_SAFE = false;
   try {
     var testQs = new URLSearchParams(window.location.search);
     TEST_BOSS = !!testQs.get('boss');
     TEST_HARD = !!testQs.get('hard');
+    TEST_SAFE = !!testQs.get('safe');
   } catch (e) {}
   var TEST_MODE = TEST_BOSS || TEST_HARD;
+  TEST_SAFE = TEST_SAFE && TEST_MODE; // 장애물 제거는 테스트 모드에서만 허용
 
   // ---- 점수 구간 돌파 축하 연출: 1,000 / 5,000 / 10,000점을 처음 넘는 순간, 플레이 화면
   // 왼쪽 상단(캐릭터 뒷편)에 축하 이미지가 1초간 떴다 사라지고 축하음이 한 번 울린다.
@@ -533,7 +539,9 @@
   // 올라간다 (loop()의 oTop 참고).
   // 2) 핑크똥: 이후에 새로 나오는 것부터 15% 커진다 (이미 화면에 있는 건 그대로).
   // 숫자는 assets/tune.js(있으면) 에서 window.* 로 덮어쓸 수 있게 해뒀다.
-  var HARD_MODE_SCORE = TEST_HARD ? 1 : (window.HARD_MODE_SCORE || 10000);
+  // 테스트 모드에서는 항상 하드 구간으로 시작한다. 실제 보스 도달 시점(약 4분 52초)에는
+  // 이미 5,000점을 훨씬 넘겨서 하드 구간이므로, ?boss=1도 같은 조건이어야 테스트가 맞다.
+  var HARD_MODE_SCORE = TEST_MODE ? 1 : (window.HARD_MODE_SCORE || 10000);
   var POOP_HARD_SCALE = window.POOP_HARD_SCALE || 1.15;
   var MOUSE_HOP_PEAK_FRAC = window.MOUSE_HOP_PEAK_FRAC || (1 / 3); // 플레이어 점프 높이 대비
   var MOUSE_HOP_X_START_FRAC = window.MOUSE_HOP_X_START_FRAC || 0.50; // appW 기준 도약 시작 지점
@@ -562,9 +570,16 @@
     return (bossPreload.naturalWidth && bossPreload.naturalHeight)
       ? (bossPreload.naturalWidth / bossPreload.naturalHeight) : 1.018;
   }
-  var FINAL_NOTICE_LEAD = window.FINAL_NOTICE_LEAD || 5; // 마지막 곡 남은 시간(초) - 예고
+  // 마지막 곡의 "남은 시간"을 기준으로 엔딩이 진행된다. 음악 페이드 아웃이 가장 먼저
+  // 시작되고(5초 전), 그 다음 예고(4초 전), 그 다음 유모차(3초 전) 순서다. 예고가 떠 있는
+  // 시간은 4초 - 3초 = 1초로, 이전(2초)의 절반이다.
+  var FINAL_FADE_LEAD = window.FINAL_FADE_LEAD || 5; // 마지막 곡 남은 시간(초) - 음악 줄이기 시작
+  var FINAL_NOTICE_LEAD = window.FINAL_NOTICE_LEAD || 4; // 마지막 곡 남은 시간(초) - 예고 + 장애물 중단
   var FINAL_ITEM_LEAD = window.FINAL_ITEM_LEAD || 3; // 마지막 곡 남은 시간(초) - 유모차 등장
-  var FINAL_STROLLER_FRAC = window.FINAL_STROLLER_FRAC || 0.22; // appH 대비 유모차 크기
+  // 유모차 크기: appH 대비. 0.22에서 0.14로 줄였다. 유모차 그림은 정사각형이라 0.22면
+  // 별(트릿) 아이템보다 넓이가 3배 가까이 커서 너무 쉽게 먹혔다. 0.14면 +100점 별 아이템과
+  // 화면에서 차지하는 넓이가 거의 같아져서, 제대로 노려야 먹을 수 있다.
+  var FINAL_STROLLER_FRAC = window.FINAL_STROLLER_FRAC || 0.14;
   var BOSS_H_FRAC = window.BOSS_H_FRAC || 0.72; // 2단 점프 최고점(0.64)보다 커야 벽이 된다
   var CLEAR_MSG_FRAC = window.CLEAR_MSG_FRAC || 0.7254; // 10,000점 돌파(0.4836)보다 50% 큼
   var CLEAR_MSG_TOP_FRAC = window.CLEAR_MSG_TOP_FRAC || 0.11; // 돌파 연출과 같은 높이
@@ -577,7 +592,15 @@
   var KO_SCORE = window.KO_SCORE || 500; // 무적 중 장애물/보스 처치 보상
   var CLEAR_TAG = '클리어'; // 순위표 이름 앞에 붙는 표시
 
+  // 테스트 모드 시작 시점(초). 실제 게임에서 그 구간에 도달하는 시간이다.
+  // ?boss=1 -> 292초(4분 52초) = 보스가 등장하는 시점의 속도
+  // ?hard=1 -> 140초(2분 20초) = 5,000점을 넘기는 시점의 속도
+  // 이 시각부터 시작해서 실제 게임과 똑같이 계속 빨라진다.
+  var TEST_START_SEC = TEST_BOSS ? (window.TEST_BOSS_AT_SEC || 292)
+    : (window.TEST_HARD_AT_SEC || 140);
+
   var finalPhase = false; // 예고가 뜬 순간부터 true (일반 장애물 생성 중단)
+  var finalFadeStarted = false; // 마지막 곡 페이드 아웃을 시작했는가
   var finalNoticeShown = false;
   var finalItemSpawned = false;
   var strollerTaken = false; // 유모차를 먹었는가 (= 보스를 잡을 수 있는가)
@@ -623,6 +646,17 @@
     // (see currentGaugeMax) - keeps invincibility from becoming a
     // free crutch once the higher spawn rate makes clean dodges easy
     // to rack up quickly.
+  // 실제 게임이 t초 지점에서 갖고 있는 난이도 배수를 그대로 계산한다 (loop()의 램프와 동일
+  // 한 식): 음악 램프(MUSIC_RAMP_FACTOR) + 첫 15초의 1.02/3초 + 70초 이후의 1.04/3초.
+  // 테스트 모드에서 시작 배수를 맞추는 데만 쓴다.
+  function multiplierAtSecond(t){
+    var m = MUSIC_RAMP_FACTOR * Math.pow(EARLY_LEVEL_UP_FACTOR,
+      Math.floor(EASE_WINDOW_SECONDS / LEVEL_UP_SECONDS));
+    var plateauEnd = EASE_WINDOW_SECONDS + DIFFICULTY_DELAY_SECONDS;
+    if (t > plateauEnd) m *= Math.pow(LEVEL_UP_FACTOR, (t - plateauEnd) / LEVEL_UP_SECONDS);
+    return m;
+  }
+
   function currentGaugeMax(){
     var diff = Math.min(1, (speedMultiplier - 1) / 1.6);
     return Math.round(GAUGE_MAX_BASE + (GAUGE_MAX_LATE - GAUGE_MAX_BASE) * diff);
@@ -1039,6 +1073,7 @@
     bonusSpawned = false;
     milestoneIdx = 0;
     finalPhase = false;
+    finalFadeStarted = false;
     finalNoticeShown = false;
     finalItemSpawned = false;
     strollerTaken = false;
@@ -1059,6 +1094,15 @@
     if (crowWarningEl) crowWarningEl.hidden = true;
     if (crowWarnTimer) { clearTimeout(crowWarnTimer); crowWarnTimer = null; }
     crowPending = false;
+    // 테스트 모드: 실제 게임의 해당 구간 속도로 시작한다. gameTime까지 그 시점으로 옮겨서
+    // 장애물 종류 해금(까마귀 10초 이후 등)과 난이도 램프가 실제 게임과 똑같이 이어진다.
+    if (TEST_MODE){
+      gameTime = TEST_START_SEC;
+      musicRampProgress = 1; // 음악 램프는 이미 다 적용된 상태
+      speedMultiplier = multiplierAtSecond(TEST_START_SEC);
+      lastLevelTime = gameTime;
+      lastLevelCount = 0;
+    }
     layout();
   }
 
@@ -1122,7 +1166,7 @@
     submitNameBtn.hidden = false;
     // 점수/순위/이름 입력은 게임오버와 완전히 동일하고, 실망한 표정 그림과 문구만 바꾼다.
     if (gameoverPic) gameoverPic.hidden = !!isClear;
-    if (gameOverTitleEl) gameOverTitleEl.textContent = isClear ? '🎉 왕을 무찔렀어요!' : '크림아! 발 닦자!';
+    if (gameOverTitleEl) gameOverTitleEl.textContent = isClear ? '완벽한 산책이었어!' : '크림아! 발 닦자!';
 
     // the game-over screen itself only appears once the TOP10 fetch has fully settled -
     // the spinner overlay covers the wait instead, so it's never mistaken for a freeze.
@@ -1487,9 +1531,15 @@
   // bgmCheckCrossfade에서 마지막 곡의 timeupdate마다 호출된다 (초당 4회쯤).
   function checkFinalSequence(remain){
     if (state !== 'playing') return;
+    // 1) 음악 줄이기 (예고보다 먼저 시작해서, 예고 시간을 줄여도 페이드는 길게 유지된다)
+    if (!finalFadeStarted && remain <= FINAL_FADE_LEAD){
+      finalFadeStarted = true;
+      beginFinalMusicFade(remain);
+    }
+    // 2) 예고 + 일반 장애물 중단
     if (!finalNoticeShown && remain <= FINAL_NOTICE_LEAD){
       finalNoticeShown = true;
-      beginFinalPhase(remain);
+      beginFinalPhase();
     }
     if (finalNoticeShown && !finalItemSpawned && remain <= FINAL_ITEM_LEAD){
       finalItemSpawned = true;
@@ -1498,18 +1548,20 @@
     }
   }
 
-  function beginFinalPhase(remain){
-    finalPhase = true;
-    // 마지막 곡을 여기서부터 서서히 줄인다. 곡이 끝나는 순간(= 보스 음악이 시작되는 순간)에
-    // 이미 거의 무음이 되어 있어야 보스 음악이 갑툭튀로 들리지 않는다. 유모차 예고와 유모차
-    // 등장 구간이 조용해지면서 긴장감도 생긴다. 곡 자체는 끝까지 재생되어야 'ended'로 보스전이
-    // 시작되므로 pause()는 절대 부르지 않고 볼륨만 내린다. 페이드 길이는 남은 시간에서
-    // 자동으로 계산하므로 FINAL_NOTICE_LEAD를 바꿔도 알아서 맞춰진다.
+  // 마지막 곡을 서서히 줄인다. 곡이 끝나는 순간(= 보스 음악이 시작되는 순간)에 이미 거의
+  // 무음이 되어 있어야 보스 음악이 갑툭튀로 들리지 않는다. 곡 자체는 끝까지 재생되어야
+  // 'ended'로 보스전이 시작되므로 pause()는 절대 부르지 않고 볼륨만 내린다. 페이드 길이는
+  // 남은 시간에서 자동으로 계산하므로 FINAL_FADE_LEAD를 바꿔도 알아서 맞춰진다.
+  function beginFinalMusicFade(remain){
     var lastEl = bgmEls[bgmActive];
     if (lastEl && !lastEl.paused){
-      var outMs = Math.max(500, ((remain || FINAL_NOTICE_LEAD) - 0.3) * 1000);
+      var outMs = Math.max(500, ((remain || FINAL_FADE_LEAD) - 0.3) * 1000);
       bgmFade(lastEl, lastEl.volume, 0, outMs);
     }
+  }
+
+  function beginFinalPhase(){
+    finalPhase = true;
     // 진행 중인 까마귀 예고는 취소한다 - 2초 뒤에 까마귀가 유모차와 겹쳐 나오면 안 된다.
     if (crowWarnTimer){ clearTimeout(crowWarnTimer); crowWarnTimer = null; }
     if (crowWarningEl) crowWarningEl.hidden = true;
@@ -1793,7 +1845,7 @@
       // paused while a crow's 2s warning is showing, so nothing else can spawn into that
       // window and create an unfair overlap (see beginCrowSequence).
       // 엔딩 시퀀스(유모차 예고 ~ 보스전) 동안에는 일반 장애물을 전혀 만들지 않는다.
-      if (!crowPending && !finalPhase){
+      if (!crowPending && !finalPhase && !TEST_SAFE){
         spawnTimer += dt * 1000;
         if (spawnTimer >= nextSpawnIn){
           spawnTimer = 0;

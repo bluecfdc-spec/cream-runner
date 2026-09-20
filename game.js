@@ -68,7 +68,11 @@
     { score: 10000, img: milestoneSrc(window.MILESTONE_IMG_10000, "assets/milestone_10000.webp") }
   ];
   var MILESTONE_FX_MS = 1000;      // 화면에 보이는 시간 (1초)
-  var MILESTONE_SIZE_FRAC = 0.286; // 오빠!/엄마! 문구(0.26)보다 10% 큰 폭
+  // 크기/위치는 assets/tune.js(있으면) 에서 window.MILESTONE_* 로 덮어쓸 수 있게 해둔다.
+  // 그래야 이런 미세조정을 할 때 game.js 전체를 다시 올리지 않아도 된다.
+  var MILESTONE_SIZE_FRAC = window.MILESTONE_SIZE_FRAC || 0.372; // 오빠!/엄마! 문구(0.26)보다 +43% (기존 0.286에서 +30%)
+  var MILESTONE_TOP_FRAC  = window.MILESTONE_TOP_FRAC  || 0.09;  // 위에서 내려온 거리 (커진 크기에서 위가 안 잘리게)
+  var MILESTONE_LEFT_FRAC = window.MILESTONE_LEFT_FRAC || 0.025; // 왼쪽 여백
   var milestoneIdx = 0;            // 다음에 터질 구간 (reset()에서 0으로 초기화)
   // 1초만 보이는 연출이라 그 순간에 처음 받아오면 늦게 떠서 놓칠 수 있으니 미리 디코딩해둔다.
   SCORE_MILESTONES.forEach(function(m){ var pre = new Image(); pre.src = m.img; });
@@ -1260,8 +1264,8 @@
     var rect = app.getBoundingClientRect();
     var el = document.createElement('div');
     el.className = 'milestone-fx';
-    el.style.left = (rect.width * 0.025) + 'px';
-    el.style.top = (rect.height * 0.05) + 'px';
+    el.style.left = (rect.width * MILESTONE_LEFT_FRAC) + 'px';
+    el.style.top = (rect.height * MILESTONE_TOP_FRAC) + 'px';
     el.style.width = (rect.height * MILESTONE_SIZE_FRAC) + 'px';
     el.innerHTML = '<img src="' + src + '" alt="">';
     effectsLayer.appendChild(el);

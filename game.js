@@ -400,7 +400,7 @@
       nextEl.loop = !!opts.loop;
       nextEl.src = folder + track.file;
       nextEl.currentTime = 0;
-      nextEl.volume = opts.instant ? BGM_VOLUME : 0;
+      nextEl.volume = (opts.instant && !opts.fadeIn) ? BGM_VOLUME : 0;
       var p = nextEl.play();
       if (p && p.catch) p.catch(function(){});
     } catch (e) {}
@@ -408,8 +408,10 @@
     bgmSetSpinning(true);
     if (opts.instant) {
       bgmCancelFades();
-      nextEl.volume = BGM_VOLUME;
       if (curEl) { try { curEl.pause(); } catch (e) {} }
+      // fadeIn이 있으면 0에서 서서히 올린다 (보스 음악이 갑툭튀하지 않게).
+      if (opts.fadeIn) { nextEl.volume = 0; bgmFade(nextEl, 0, BGM_VOLUME, opts.fadeIn); }
+      else nextEl.volume = BGM_VOLUME;
     } else {
       // 앞 곡은 bgmBeginHandoff에서 이미 페이드 아웃 후 정지된 상태다. 혹시라도 남아 있으면
       // 여기서 확실히 멈춰서, 두 곡이 같이 들리는 순간이 단 한 프레임도 없게 만든다.
@@ -568,6 +570,10 @@
   var CLEAR_MSG_TOP_FRAC = window.CLEAR_MSG_TOP_FRAC || 0.11; // 돌파 연출과 같은 높이
   var CLEAR_MSG_DELAY_MS = 700; // 다운된 보스를 먼저 보여주는 시간
   var CLEAR_HOLD_MS = 2600; // 다운/축하 연출 후 점수 화면까지
+  // 보스 음악이 0에서 정상 볼륨까지 올라오는 시간. 보스는 등장 후 1초 안에 캐릭터에게
+  // 닿으므로, 너무 길게 잡으면 정작 보스와 부딪히는 순간이 조용해진다. 1.2초면 첫
+  // 0.5초에 이미 60% 볼륨이라 "갑툭튀"는 사라지고 타격감은 유지된다.
+  var BOSS_FADE_IN_MS = window.BOSS_FADE_IN_MS || 1200;
   var KO_SCORE = window.KO_SCORE || 500; // 무적 중 장애물/보스 처치 보상
   var CLEAR_TAG = '클리어'; // 순위표 이름 앞에 붙는 표시
 
@@ -1483,7 +1489,7 @@
     if (state !== 'playing') return;
     if (!finalNoticeShown && remain <= FINAL_NOTICE_LEAD){
       finalNoticeShown = true;
-      beginFinalPhase();
+      beginFinalPhase(remain);
     }
     if (finalNoticeShown && !finalItemSpawned && remain <= FINAL_ITEM_LEAD){
       finalItemSpawned = true;
@@ -1492,8 +1498,18 @@
     }
   }
 
-  function beginFinalPhase(){
+  function beginFinalPhase(remain){
     finalPhase = true;
+    // 마지막 곡을 여기서부터 서서히 줄인다. 곡이 끝나는 순간(= 보스 음악이 시작되는 순간)에
+    // 이미 거의 무음이 되어 있어야 보스 음악이 갑툭튀로 들리지 않는다. 유모차 예고와 유모차
+    // 등장 구간이 조용해지면서 긴장감도 생긴다. 곡 자체는 끝까지 재생되어야 'ended'로 보스전이
+    // 시작되므로 pause()는 절대 부르지 않고 볼륨만 내린다. 페이드 길이는 남은 시간에서
+    // 자동으로 계산하므로 FINAL_NOTICE_LEAD를 바꿔도 알아서 맞춰진다.
+    var lastEl = bgmEls[bgmActive];
+    if (lastEl && !lastEl.paused){
+      var outMs = Math.max(500, ((remain || FINAL_NOTICE_LEAD) - 0.3) * 1000);
+      bgmFade(lastEl, lastEl.volume, 0, outMs);
+    }
     // 진행 중인 까마귀 예고는 취소한다 - 2초 뒤에 까마귀가 유모차와 겹쳐 나오면 안 된다.
     if (crowWarnTimer){ clearTimeout(crowWarnTimer); crowWarnTimer = null; }
     if (crowWarningEl) crowWarningEl.hidden = true;
@@ -1546,8 +1562,10 @@
   function beginFinalBoss(){
     if (bossMusicOn) return;
     bossMusicOn = true;
-    // instant: 겹치지 않고 바로 시작, loop 없음 -> 한 번만 재생되고 끝난다.
-    bgmPlayTrack(window.BGM_FINAL_BOSS || window.BGM_END, { instant: true });
+    // instant: 앞 곡과 겹치지 않고 바로 시작, loop 없음 -> 한 번만 재생되고 끝난다.
+    // fadeIn: 0에서 BOSS_FADE_IN_MS 동안 볼륨을 올린다 (앞 곡은 이미 페이드 아웃으로
+    // 거의 무음이므로, 무음 -> 보스 음악으로 자연스럽게 이어진다).
+    bgmPlayTrack(window.BGM_FINAL_BOSS || window.BGM_END, { instant: true, fadeIn: BOSS_FADE_IN_MS });
     if (state === 'playing') spawnBoss();
   }
 

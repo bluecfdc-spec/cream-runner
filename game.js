@@ -437,6 +437,24 @@
   var CROW_ARC_RANGE = 400; // horizontal distance (px) over which the lift eases from 0 (right
                             // at the character's x, the actual jump-it moment) up to max
   var DOG_EXTRA_SPEED = 0; // dog closes in faster than the scroll speed (set in layout)
+
+  // ---- 10,000점 돌파 이후의 추가 난이도 (까마귀는 이전과 완전히 동일하게 유지) ----
+  //  1) 회색쥐: 화면 가운데(= 플레이어를 만나기 직전)에서 깔짝 뛴다. 최고 높이는 플레이어
+  //     단일 점프의 1/3. 까마귀의 "보여주기용" 상하 움직임과 달리 이건 판정에도 반영된다 -
+  //     판정 박스의 크기(o.w/o.h)와 좌우 여백은 그대로 두고, 뛴 높이만큼 박스가 같이
+  //     올라간다 (loop()의 oTop 참고).
+  //  2) 핑크똥: 이후에 새로 나오는 것부터 15% 커진다 (이미 화면에 있는 건 그대로).
+  // 숫자는 assets/tune.js(있으면) 에서 window.* 로 덮어쓸 수 있게 해뒀다.
+  var HARD_MODE_SCORE = window.HARD_MODE_SCORE || 10000;
+  var POOP_HARD_SCALE = window.POOP_HARD_SCALE || 1.15;
+  var MOUSE_HOP_PEAK_FRAC = window.MOUSE_HOP_PEAK_FRAC || (1 / 3);    // 플레이어 점프 높이 대비
+  var MOUSE_HOP_X_START_FRAC = window.MOUSE_HOP_X_START_FRAC || 0.50; // appW 기준 도약 시작 지점
+  var MOUSE_HOP_X_END_FRAC = window.MOUSE_HOP_X_END_FRAC || 0.02;     // appW 기준 착지 지점
+  var MOUSE_HOP_PEAK = 30;  // set for real in layout()
+  var MOUSE_HOP_X0 = 0;     // set for real in layout()
+  var MOUSE_HOP_X1 = 0;     // set for real in layout()
+  function hardMode(){ return score >= HARD_MODE_SCORE; }
+
   var BASE_SPEED = 260;
   var MAX_SPEED = 560;
   var OBST_GAP_PX = 340; // target pixel gap between obstacles, kept ~constant as speed rises
@@ -823,6 +841,10 @@
     GRAVITY = BASE_GRAVITY * (1 + GRAVITY_SPEED_SCALE * (speedMultiplier - 1));
     JUMP_PEAK_1 = appH * 0.40;
     JUMP_PEAK_2 = appH * 0.64;
+
+    MOUSE_HOP_PEAK = JUMP_PEAK_1 * MOUSE_HOP_PEAK_FRAC;
+    MOUSE_HOP_X0 = appW * MOUSE_HOP_X_START_FRAC;
+    MOUSE_HOP_X1 = appW * MOUSE_HOP_X_END_FRAC;
 
     BASE_SPEED = Math.max(150, appW * 0.368 * 1.05);
     MAX_SPEED = Math.max(360, appW * 0.9 * 1.05);
@@ -1289,7 +1311,7 @@
         '<img class="dog-frame frame-a" src="' + IMG_DOG_A + '" alt="">' +
         '<img class="dog-frame frame-b" src="' + IMG_DOG_B + '" alt="">';
       obstaclesLayer.appendChild(el);
-      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED });
+      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED, hop: 0, hops: hardMode() });
       lastSpawnType = 'dog';
       return;
     }
@@ -1311,7 +1333,7 @@
 
     // default: poop
     var prevType = lastSpawnType;
-    var ph = OBST_POOP_H;
+    var ph = OBST_POOP_H * (hardMode() ? POOP_HARD_SCALE : 1);
     var pw = ph * 1.14; // matches the poop artwork's aspect ratio
     el.className = 'obstacle poop';
     el.style.width = pw + 'px';
@@ -1356,7 +1378,7 @@
         '<img class="dog-frame frame-a" src="' + IMG_DOG_A + '" alt="">' +
         '<img class="dog-frame frame-b" src="' + IMG_DOG_B + '" alt="">';
       obstaclesLayer.appendChild(del);
-      obstacles.push({ el: del, x: cx, w: dw2, h: dh2, elevation: 0, type: 'dog', extraSpeed: 0 });
+      obstacles.push({ el: del, x: cx, w: dw2, h: dh2, elevation: 0, type: 'dog', extraSpeed: 0, hop: 0, hops: hardMode() });
       lastSpawnType = 'dog';
       // give a bit of extra breathing room before the next independent obstacle after a combo pair
       nextSpawnIn = Math.max(nextSpawnIn, 1450);
@@ -1528,9 +1550,21 @@
           o.el.style.transform = 'translateY(-' + crowLift.toFixed(1) + 'px)';
         }
 
+        // 10,000점 이후 회색쥐의 깔짝 점프: 화면 가운데(MOUSE_HOP_X0)에서 떠올라 플레이어를
+        // 지난 직후(MOUSE_HOP_X1)에 착지하는 포물선. 시간이 아니라 x 위치로만 계산하기 때문에
+        // 스크롤 속도가 얼마나 빨라져도 뛰는 지점과 높이가 항상 똑같고, 아래 oTop에서 그대로
+        // 빼주므로 눈에 보이는 높이와 판정 높이가 언제나 일치한다 (hops가 켜진 쥐만 해당,
+        // 까마귀/똥/아이템은 o.hop이 없어서 0으로 취급되어 전혀 영향받지 않는다).
+        if (o.hops){
+          var hopP = (MOUSE_HOP_X0 - o.x) / (MOUSE_HOP_X0 - MOUSE_HOP_X1);
+          hopP = Math.max(0, Math.min(1, hopP));
+          o.hop = MOUSE_HOP_PEAK * 4 * hopP * (1 - hopP);
+          o.el.style.transform = 'translateY(-' + o.hop.toFixed(1) + 'px)';
+        }
+
         var oLeft = o.x + o.w * 0.08;
         var oW = o.w * 0.84;
-        var oTop = groundTop - o.h - (o.elevation || 0);
+        var oTop = groundTop - o.h - (o.elevation || 0) - (o.hop || 0);
 
         var overlapping = charLeft < oLeft + oW && charLeft + charW > oLeft &&
                            charTop < oTop + o.h && charTop + charH > oTop;

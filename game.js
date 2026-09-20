@@ -664,7 +664,8 @@
   // 닿으므로, 너무 길게 잡으면 정작 보스와 부딪히는 순간이 조용해진다. 1.2초면 첫
   // 0.5초에 이미 60% 볼륨이라 "갑툭튀"는 사라지고 타격감은 유지된다.
   var BOSS_FADE_IN_MS = window.BOSS_FADE_IN_MS || 1200;
-  var KO_SCORE = window.KO_SCORE || 500; // 무적 중 장애물/보스 처치 보상
+  var KO_SCORE = window.KO_SCORE || 500; // 무적 중 일반 장애물 처치 보상 (실제 적용값은 assets/tune.js에서 100으로 덮어씀)
+  var BOSS_KO_SCORE = window.BOSS_KO_SCORE || 1000; // 왕(최종 보스) 격파 보상. KO_SCORE와 분리했다. tune.js에 window.BOSS_KO_SCORE를 넣으면 그 값이 이긴다
   var CLEAR_TAG = '클리어'; // 순위표 이름 앞에 붙는 표시
 
   // 테스트 모드 시작 시점(초). 실제 게임에서 그 구간에 도달하는 시간이다.
@@ -1313,14 +1314,14 @@
   // (pink/green/orange) each time so the combo feels bright and varied, distinct from the
   // star pickup's gold "+100"
   var KO_POP_COLORS = ['c-pink', 'c-green', 'c-orange'];
-  function spawnKoPopFx(cx, cy){
+  function spawnKoPopFx(cx, cy, amount){
     if (!effectsLayer) return;
     var el = document.createElement('div');
     var color = KO_POP_COLORS[Math.floor(Math.random() * KO_POP_COLORS.length)];
     el.className = 'ko-pop-fx ' + color;
     el.style.left = cx + 'px';
     el.style.top = cy + 'px';
-    el.textContent = '+' + KO_SCORE;
+    el.textContent = '+' + (amount == null ? KO_SCORE : amount);
     effectsLayer.appendChild(el);
     setTimeout(function(){ el.remove(); }, 550);
   }
@@ -1747,8 +1748,8 @@
     var img = o.el.querySelector('.boss-img');
     if (img) img.src = BOSS_DOWN_IMG;
     o.el.classList.add('downed');
-    score += KO_SCORE;
-    spawnKoPopFx(o.x + o.w / 2, groundTop - o.h * 0.6);
+    score += BOSS_KO_SCORE;
+    spawnKoPopFx(o.x + o.w / 2, groundTop - o.h * 0.6, BOSS_KO_SCORE);
     spawnImpactEffect(o.x + o.w / 2, groundTop - o.h * 0.45);
     playObstacleKoSfx();
     playMilestoneSfx();

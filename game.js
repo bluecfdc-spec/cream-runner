@@ -1,4 +1,4 @@
- (function(){
+(function(){
   "use strict";
 
   var app = document.getElementById('app');
@@ -32,6 +32,7 @@
   var nameInput = document.getElementById('nameInput');
   var submitNameBtn = document.getElementById('submitNameBtn');
   var gameoverPic = document.getElementById('gameoverPic');
+  var gameOverTitleEl = document.getElementById('gameOverTitle');
   var bannerImg = document.getElementById('bannerImg');
   var startBannerImg = document.getElementById('startBannerImg');
   var visitBadge = document.getElementById('visitBadge');
@@ -52,6 +53,19 @@
   var IMG_CROW_UP = "assets/img_crow_up.png";
   var IMG_CROW_DOWN = "assets/img_crow_down.png";
 
+  // ---- 테스트 모드 ----
+  // ?boss=1 : 랜덤 사이클을 건너뛰고 오프닝곡 하나만 재생한다. 그 곡이 곧 "마지막 곡"이 되어
+  // 15초 안에 유모차 예고 -> 유모차 -> 보스 -> 클리어까지 확인할 수 있다.
+  // ?hard=1 : 1만점 이후 난이도(쥐 점프/큰 똥)를 처음부터 켠다.
+  // 두 모드에서는 순위 등록과 방문자 집계를 하지 않아 실제 기록이 더러워지지 않는다.
+  var TEST_BOSS = false, TEST_HARD = false;
+  try {
+    var testQs = new URLSearchParams(window.location.search);
+    TEST_BOSS = !!testQs.get('boss');
+    TEST_HARD = !!testQs.get('hard');
+  } catch (e) {}
+  var TEST_MODE = TEST_BOSS || TEST_HARD;
+
   // ---- 점수 구간 돌파 축하 연출: 1,000 / 5,000 / 10,000점을 처음 넘는 순간, 플레이 화면
   // 왼쪽 상단(캐릭터 뒷편)에 축하 이미지가 1초간 떴다 사라지고 축하음이 한 번 울린다.
   // 순수 연출이라 obstacles에 절대 들어가지 않고 충돌/점프/게임오버 판정과 무관하다.
@@ -63,17 +77,17 @@
     return b64 ? ('data:image/webp;base64,' + b64) : filePath;
   }
   var SCORE_MILESTONES = [
-    { score: 1000,  img: milestoneSrc(window.MILESTONE_IMG_1000,  "assets/milestone_1000.webp") },
-    { score: 5000,  img: milestoneSrc(window.MILESTONE_IMG_5000,  "assets/milestone_5000.webp") },
+    { score: 1000, img: milestoneSrc(window.MILESTONE_IMG_1000, "assets/milestone_1000.webp") },
+    { score: 5000, img: milestoneSrc(window.MILESTONE_IMG_5000, "assets/milestone_5000.webp") },
     { score: 10000, img: milestoneSrc(window.MILESTONE_IMG_10000, "assets/milestone_10000.webp") }
   ];
-  var MILESTONE_FX_MS = 1000;      // 화면에 보이는 시간 (1초)
+  var MILESTONE_FX_MS = 1000; // 화면에 보이는 시간 (1초)
   // 크기/위치는 assets/tune.js(있으면) 에서 window.MILESTONE_* 로 덮어쓸 수 있게 해둔다.
   // 그래야 이런 미세조정을 할 때 game.js 전체를 다시 올리지 않아도 된다.
   var MILESTONE_SIZE_FRAC = window.MILESTONE_SIZE_FRAC || 0.372; // 오빠!/엄마! 문구(0.26)보다 +43% (기존 0.286에서 +30%)
-  var MILESTONE_TOP_FRAC  = window.MILESTONE_TOP_FRAC  || 0.09;  // 위에서 내려온 거리 (커진 크기에서 위가 안 잘리게)
+  var MILESTONE_TOP_FRAC = window.MILESTONE_TOP_FRAC || 0.09; // 위에서 내려온 거리 (커진 크기에서 위가 안 잘리게)
   var MILESTONE_LEFT_FRAC = window.MILESTONE_LEFT_FRAC || 0.025; // 왼쪽 여백
-  var milestoneIdx = 0;            // 다음에 터질 구간 (reset()에서 0으로 초기화)
+  var milestoneIdx = 0; // 다음에 터질 구간 (reset()에서 0으로 초기화)
   // 1초만 보이는 연출이라 그 순간에 처음 받아오면 늦게 떠서 놓칠 수 있으니 미리 디코딩해둔다.
   SCORE_MILESTONES.forEach(function(m){ var pre = new Image(); pre.src = m.img; });
 
@@ -103,20 +117,20 @@
   // BOX size itself never changes between states, only where it sits and how tight the
   // hitbox is within it.
   var LIFE_STATE_CFG = {
-    3: { offsetXFrac: 0,     hitFront: 0.72, hitRear: 0.40 },
+    3: { offsetXFrac: 0, hitFront: 0.72, hitRear: 0.40 },
     2: { offsetXFrac: -0.05, hitFront: 0.66, hitRear: 0.42 },
     1: { offsetXFrac: -0.10, hitFront: 0.60, hitRear: 0.45 }
   };
-  var lifeState = 3;        // 3 = 온가족, 2 = 여자+강아지, 1 = 강아지 혼자
+  var lifeState = 3; // 3 = 온가족, 2 = 여자+강아지, 1 = 강아지 혼자
   var charOffsetX = 0;
-  var hitInvuln = false;    // brief grace period right after a life-loss hit so the same
-                             // obstacle can't immediately cause a second hit next frame
+  var hitInvuln = false; // brief grace period right after a life-loss hit so the same
+    // obstacle can't immediately cause a second hit next frame
   var HIT_INVULN_DURATION = 1.0;
   var hitInvulnTimer = 0;
   var LIFE_RECOVERY_DELAY = 25; // seconds after the most recent life-loss before the
-                                  // recovery bonus for the missing family member appears
-  var BONUS_ITEM_H = 45;    // set for real in layout()
-  var bonusDueAt = null;    // gameTime value at which the next recovery bonus should spawn
+    // recovery bonus for the missing family member appears
+  var BONUS_ITEM_H = 45; // set for real in layout()
+  var bonusDueAt = null; // gameTime value at which the next recovery bonus should spawn
   var bonusSpawned = false; // true while a recovery bonus item is currently on screen
 
   function applyCharTransform(){
@@ -306,7 +320,9 @@
   function bgmBuildQueue(){
     var c1 = window.BGM_CYCLE_1 || window.BGM_MIDDLE || [];
     var c2 = window.BGM_CYCLE_2 || [];
-    bgmQueue = [window.BGM_OPEN].concat(bgmShuffle(c1), bgmShuffle(c2));
+    // 테스트 모드(?boss=1)에서는 오프닝곡 하나만 넣어서, 그 곡이 곧 마지막 곡이 되게 한다.
+    bgmQueue = TEST_BOSS ? [window.BGM_OPEN]
+      : [window.BGM_OPEN].concat(bgmShuffle(c1), bgmShuffle(c2));
     bgmQueueIdx = -1;
   }
   // 같은 <audio>에 대해 페이드가 새로 시작되면 이전 페이드는 즉시 버린다. 이게 없으면
@@ -400,13 +416,23 @@
     } else if (bgmQueueIdx < bgmQueue.length) {
       bgmPlayTrack(bgmQueue[bgmQueueIdx], {});
     } else {
-      bgmPlayTrack(window.BGM_END, { loop: true });
+      beginFinalBoss();
     }
+  }
+  function bgmIsLastQueued(){
+    return bgmQueueIdx >= 0 && bgmQueueIdx === bgmQueue.length - 1;
   }
   function bgmCheckCrossfade(el){
     if (!el || el.loop) return;
+    if (bossMusicOn) return; // 보스 음원은 다음 곡으로 넘기지 않는다 (한 번만 재생)
     if (!el.duration || isNaN(el.duration)) return;
     var remain = el.duration - el.currentTime;
+    if (bgmIsLastQueued()){
+      // 마지막 곡은 미리 크로스페이드로 넘기지 않는다. 곡이 완전히 끝나는 순간 보스 음원이
+      // 딱 시작해야 연출이 살고, 4초 페이드를 그대로 쓰면 유모차 등장 구간과 겹쳐버린다.
+      checkFinalSequence(remain);
+      return;
+    }
     if (remain <= BGM_FADE_MS / 1000 && !bgmAdvancing) {
       bgmAdvancing = true;
       bgmAdvance();
@@ -418,7 +444,13 @@
       if (bgmEls[bgmActive] === el) bgmCheckCrossfade(el);
     });
     el.addEventListener('ended', function(){
-      if (bgmEls[bgmActive] === el && !bgmAdvancing) {
+      if (bgmEls[bgmActive] !== el) return;
+      if (bossMusicOn){
+        // 보스 음원이 끝나면 BGM은 완전히 끝 (반복 없음, 다음 곡 없음)
+        bgmSetSpinning(false);
+        return;
+      }
+      if (!bgmAdvancing) {
         bgmAdvancing = true;
         bgmAdvance();
       }
@@ -427,6 +459,7 @@
 
   function startMusic(){
     stopMusic();
+    bossMusicOn = false;
     bgmBuildQueue();
     bgmAdvancing = false;
     bgmAdvance();
@@ -443,49 +476,90 @@
   var JUMP_PEAK_1 = 200; // guaranteed apex height of a single jump
   var JUMP_PEAK_2 = 320; // guaranteed apex height once you double-jump, no matter the timing
   var GROUND_H = 64;
-  var OBST_POOP_H = 26;    // 💩 flat & small, always has to be jumped
-  var STAR_H = 45;         // treat-jar bonus item size (50% bigger than the original size so
-                           // it actually reads as something worth grabbing) - air lane, no
-                           // longer a hazard, so it's fine to line up with a ground obstacle
+  var OBST_POOP_H = 26; // 💩 flat & small, always has to be jumped
+  var STAR_H = 45; // treat-jar bonus item size (50% bigger than the original size so
+    // it actually reads as something worth grabbing) - air lane, no
+    // longer a hazard, so it's fine to line up with a ground obstacle
   var STAR_ELEV_HIGH = 40; // "sky" flight lane - the original, higher pop-up height
-  var STAR_ELEV_MID = 20;  // "mid-air" flight lane - noticeably lower than the sky lane, but
-                            // still clearly off the ground so it never reads as a ground hazard
+  var STAR_ELEV_MID = 20; // "mid-air" flight lane - noticeably lower than the sky lane, but
+    // still clearly off the ground so it never reads as a ground hazard
   var STAR_ASPECT = 200 / 435; // treat-jar art's width/height ratio (tall bottle shape)
-  var DOG_H = 34;          // dog obstacle height, jumpable like poop
-  var DOG_ASPECT = 1.48;   // dog sprite box width/height ratio
-  var CROW_H = 40;         // real hazard again - taller than the dog, so it forces a proper
-                            // jump, but still ground-level (jump to clear, exactly like every
-                            // other obstacle - no "duck" mechanic exists in this game, so an
-                            // aerial-only hazard would be undodgeable/unfair)
+  var DOG_H = 34; // dog obstacle height, jumpable like poop
+  var DOG_ASPECT = 1.48; // dog sprite box width/height ratio
+  var CROW_H = 40; // real hazard again - taller than the dog, so it forces a proper
+    // jump, but still ground-level (jump to clear, exactly like every
+    // other obstacle - no "duck" mechanic exists in this game, so an
+    // aerial-only hazard would be undodgeable/unfair)
   var CROW_ASPECT = 325 / 300; // box sized off the wings-up frame's aspect
   var CROW_LIFT_MAX = 200; // how high above its ground-level hitbox the crow visually swoops
-                            // at the top of its dive (purely cosmetic - see loop())
+    // at the top of its dive (purely cosmetic - see loop())
   var CROW_ARC_RANGE = 400; // horizontal distance (px) over which the lift eases from 0 (right
-                            // at the character's x, the actual jump-it moment) up to max
+    // at the character's x, the actual jump-it moment) up to max
   var DOG_EXTRA_SPEED = 0; // dog closes in faster than the scroll speed (set in layout)
 
   // ---- 10,000점 돌파 이후의 추가 난이도 (까마귀는 이전과 완전히 동일하게 유지) ----
-  //  1) 회색쥐: 화면 가운데(= 플레이어를 만나기 직전)에서 깔짝 뛴다. 최고 높이는 플레이어
-  //     단일 점프의 1/3. 까마귀의 "보여주기용" 상하 움직임과 달리 이건 판정에도 반영된다 -
-  //     판정 박스의 크기(o.w/o.h)와 좌우 여백은 그대로 두고, 뛴 높이만큼 박스가 같이
-  //     올라간다 (loop()의 oTop 참고).
-  //  2) 핑크똥: 이후에 새로 나오는 것부터 15% 커진다 (이미 화면에 있는 건 그대로).
+  // 1) 회색쥐: 화면 가운데(= 플레이어를 만나기 직전)에서 깔짝 뛴다. 최고 높이는 플레이어
+  // 단일 점프의 1/3. 까마귀의 "보여주기용" 상하 움직임과 달리 이건 판정에도 반영된다 -
+  // 판정 박스의 크기(o.w/o.h)와 좌우 여백은 그대로 두고, 뛴 높이만큼 박스가 같이
+  // 올라간다 (loop()의 oTop 참고).
+  // 2) 핑크똥: 이후에 새로 나오는 것부터 15% 커진다 (이미 화면에 있는 건 그대로).
   // 숫자는 assets/tune.js(있으면) 에서 window.* 로 덮어쓸 수 있게 해뒀다.
-  var HARD_MODE_SCORE = window.HARD_MODE_SCORE || 10000;
+  var HARD_MODE_SCORE = TEST_HARD ? 1 : (window.HARD_MODE_SCORE || 10000);
   var POOP_HARD_SCALE = window.POOP_HARD_SCALE || 1.15;
-  var MOUSE_HOP_PEAK_FRAC = window.MOUSE_HOP_PEAK_FRAC || (1 / 3);    // 플레이어 점프 높이 대비
+  var MOUSE_HOP_PEAK_FRAC = window.MOUSE_HOP_PEAK_FRAC || (1 / 3); // 플레이어 점프 높이 대비
   var MOUSE_HOP_X_START_FRAC = window.MOUSE_HOP_X_START_FRAC || 0.50; // appW 기준 도약 시작 지점
-  var MOUSE_HOP_X_END_FRAC = window.MOUSE_HOP_X_END_FRAC || 0.02;     // appW 기준 착지 지점
-  var MOUSE_HOP_PEAK = 30;  // set for real in layout()
-  var MOUSE_HOP_X0 = 0;     // set for real in layout()
-  var MOUSE_HOP_X1 = 0;     // set for real in layout()
+  var MOUSE_HOP_X_END_FRAC = window.MOUSE_HOP_X_END_FRAC || 0.02; // appW 기준 착지 지점
+  var MOUSE_HOP_PEAK = 30; // set for real in layout()
+  var MOUSE_HOP_X0 = 0; // set for real in layout()
+  var MOUSE_HOP_X1 = 0; // set for real in layout()
   function hardMode(){ return score >= HARD_MODE_SCORE; }
+
+  // ---- 최종 보스전 (엔딩) ----
+  // 2차 사이클의 마지막 곡이 끝나기 5초 전부터 이 순서로 진행된다:
+  // 5초 전 : 일반 장애물 생성 중단 + "유모차를 먹어라!" 예고 표시
+  // 3초 전 : 유모차 아이템이 공중/중간/바닥 중 한 곳에 딱 한 번만 등장
+  // 곡 종료 : Final_Boss 음원이 겹침 없이 바로 시작 + 악마 보스 등장
+  // 유모차를 먹으면 무적이 "시간 무한"으로 발동해 보스를 무찌를 수 있고, 못 먹으면 보스에
+  // 부딪히는 순간 목숨이 남아 있어도 즉시 게임오버다 (보스는 2단 점프로도 넘을 수 없는 높이).
+  var BOSS_IMG = window.BOSS_IMG ? ('data:image/webp;base64,' + window.BOSS_IMG) : 'assets/boss.webp';
+  var BOSS_DOWN_IMG = window.BOSS_DOWN_IMG ? ('data:image/webp;base64,' + window.BOSS_DOWN_IMG) : 'assets/boss_down.webp';
+  var CLEAR_MSG_IMG = window.CLEAR_MSG_IMG ? ('data:image/webp;base64,' + window.CLEAR_MSG_IMG) : 'assets/clear_msg.webp';
+  // 보스가 뜨는 순간에 처음 받아오면 늦게 나타나니 미리 디코딩해두고, 가로/세로 비율도
+  // 실제 이미지에서 읽어 쓴다 (나중에 그림을 바꿔도 찌그러지지 않게).
+  var bossPreload = new Image(); bossPreload.src = BOSS_IMG;
+  var bossDownPreload = new Image(); bossDownPreload.src = BOSS_DOWN_IMG;
+  var clearMsgPreload = new Image(); clearMsgPreload.src = CLEAR_MSG_IMG;
+  function bossAspect(){
+    return (bossPreload.naturalWidth && bossPreload.naturalHeight)
+      ? (bossPreload.naturalWidth / bossPreload.naturalHeight) : 1.018;
+  }
+  var FINAL_NOTICE_LEAD = window.FINAL_NOTICE_LEAD || 5; // 마지막 곡 남은 시간(초) - 예고
+  var FINAL_ITEM_LEAD = window.FINAL_ITEM_LEAD || 3; // 마지막 곡 남은 시간(초) - 유모차 등장
+  var FINAL_STROLLER_FRAC = window.FINAL_STROLLER_FRAC || 0.22; // appH 대비 유모차 크기
+  var BOSS_H_FRAC = window.BOSS_H_FRAC || 0.72; // 2단 점프 최고점(0.64)보다 커야 벽이 된다
+  var CLEAR_MSG_FRAC = window.CLEAR_MSG_FRAC || 0.7254; // 10,000점 돌파(0.4836)보다 50% 큼
+  var CLEAR_MSG_TOP_FRAC = window.CLEAR_MSG_TOP_FRAC || 0.11; // 돌파 연출과 같은 높이
+  var CLEAR_MSG_DELAY_MS = 700; // 다운된 보스를 먼저 보여주는 시간
+  var CLEAR_HOLD_MS = 2600; // 다운/축하 연출 후 점수 화면까지
+  var KO_SCORE = window.KO_SCORE || 500; // 무적 중 장애물/보스 처치 보상
+  var CLEAR_TAG = '클리어'; // 순위표 이름 앞에 붙는 표시
+
+  var finalPhase = false; // 예고가 뜬 순간부터 true (일반 장애물 생성 중단)
+  var finalNoticeShown = false;
+  var finalItemSpawned = false;
+  var strollerTaken = false; // 유모차를 먹었는가 (= 보스를 잡을 수 있는가)
+  var infiniteInvincible = false;
+  var bossMusicOn = false;
+  var bossSpawned = false;
+  var cleared = false;
+  var lastFinalCleared = false; // 순위 등록 시 "클리어" 표시를 붙일지
+  var strollerNoticeEl = null;
 
   var BASE_SPEED = 260;
   var MAX_SPEED = 560;
   var OBST_GAP_PX = 340; // target pixel gap between obstacles, kept ~constant as speed rises
   var SPEED_WAVE_AMPLITUDE = 0.14; // +/-14% gentle speed-up/slow-down wave layered on top
-  var SPEED_WAVE_PERIOD = 7;       // seconds per full wave cycle
+  var SPEED_WAVE_PERIOD = 7; // seconds per full wave cycle
 
   var state = 'idle'; // idle | playing | over
   var vy = 0, jumpY = 0, isJumping = false;
@@ -503,7 +577,7 @@
   var groundTop = 0;
 
   // ---- speed-scaled jump snap: higher speed = shorter hang time (same jump height) ----
-  var BASE_GRAVITY = 2300;      // set for real in layout(), scaled to box height
+  var BASE_GRAVITY = 2300; // set for real in layout(), scaled to box height
   var GRAVITY_SPEED_SCALE = 0.35; // e.g. speedMultiplier 2.0 -> ~35% more gravity -> snappier, shorter jumps
 
   // ---- 개모차 gauge: every clean dodge fills the gauge a little; full gauge auto-triggers
@@ -511,11 +585,11 @@
   // pointless) whenever you died. This way every clean dodge is banked toward something
   // concrete you keep working on, and dying only costs you the current partial fill.
   var dodgeGauge = 0;
-  var GAUGE_MAX_BASE = 10;  // clean dodges needed to fill the gauge early on
-  var GAUGE_MAX_LATE = 15;  // ...rising to this many later, once obstacles come in faster
-                             // (see currentGaugeMax) - keeps invincibility from becoming a
-                             // free crutch once the higher spawn rate makes clean dodges easy
-                             // to rack up quickly.
+  var GAUGE_MAX_BASE = 10; // clean dodges needed to fill the gauge early on
+  var GAUGE_MAX_LATE = 15; // ...rising to this many later, once obstacles come in faster
+    // (see currentGaugeMax) - keeps invincibility from becoming a
+    // free crutch once the higher spawn rate makes clean dodges easy
+    // to rack up quickly.
   function currentGaugeMax(){
     var diff = Math.min(1, (speedMultiplier - 1) / 1.6);
     return Math.round(GAUGE_MAX_BASE + (GAUGE_MAX_LATE - GAUGE_MAX_BASE) * diff);
@@ -631,7 +705,17 @@
       rank.textContent = (i + 1) + '위';
       var name = document.createElement('span');
       name.className = 'lb-name';
-      name.textContent = e.name;
+      // 이름이 "클리어 "로 시작하면 그 부분만 떼서 배지로 보여준다 (저장은 이름 앞에 붙임).
+      var rawName = String(e.name == null ? '' : e.name);
+      if (rawName.indexOf(CLEAR_TAG) === 0){
+        var badge = document.createElement('span');
+        badge.className = 'lb-clear';
+        badge.textContent = CLEAR_TAG;
+        name.appendChild(badge);
+        name.appendChild(document.createTextNode(rawName.slice(CLEAR_TAG.length).replace(/^\s+/, '')));
+      } else {
+        name.textContent = rawName;
+      }
       var sc = document.createElement('span');
       sc.className = 'lb-score';
       sc.textContent = e.score + '점';
@@ -725,7 +809,7 @@
       renderLeaderboard(top10List, top10Status, top10, true);
 
       var qualifies = top10.length < 10 || finalScore > (top10[9] ? top10[9].score : -Infinity);
-      if (qualifies){
+      if (qualifies && !TEST_MODE){
         newRecordLabel.textContent = '🎉 TOP 10 진입! 이름을 남겨보세요.';
         newRecordBox.hidden = false;
         nameInput.value = '';
@@ -738,12 +822,24 @@
 
   function submitScore(){
     var name = (nameInput.value || '').trim() || '익명';
+    // "클리어" 표시는 이름 앞에 붙여서 저장한다 (Firebase 보안 규칙을 건드리지 않아도 되게).
+    // 클리어하지 않은 사람이 이름에 직접 "클리어"를 넣어 위조하는 것은 떼어내서 막는다.
+    while (name.indexOf(CLEAR_TAG) === 0) name = name.slice(CLEAR_TAG.length).replace(/^\s+/, '');
+    if (!name) name = '익명';
     name = name.slice(0, 8);
+    var storedName = lastFinalCleared ? (CLEAR_TAG + ' ' + name) : name;
+    if (TEST_MODE){
+      // 테스트 모드 점수는 실제 순위표에 넣지 않는다.
+      newRecordLabel.textContent = '테스트 모드에서는 순위에 등록되지 않습니다.';
+      nameInput.hidden = true;
+      submitNameBtn.hidden = true;
+      return;
+    }
     submitNameBtn.disabled = true;
     nameInput.disabled = true;
     submitNameBtn.textContent = '등록 중...';
     withTimeout(
-      db.collection(SCORES_COLLECTION).add({ name: name, score: lastFinalScore, date: lastFinalDate }),
+      db.collection(SCORES_COLLECTION).add({ name: storedName, score: lastFinalScore, date: lastFinalDate }),
       15000
     ).then(function(ref){
       if (ref === null){
@@ -820,7 +916,7 @@
     startScreen.hidden = false;
   });
   // fired in parallel, not chained - never delays the loading overlay / start screen above.
-  recordAndShowVisitCounts();
+  if (!TEST_MODE) recordAndShowVisitCounts();
 
   function layout(){
     var rect = app.getBoundingClientRect();
@@ -909,6 +1005,14 @@
     bonusDueAt = null;
     bonusSpawned = false;
     milestoneIdx = 0;
+    finalPhase = false;
+    finalNoticeShown = false;
+    finalItemSpawned = false;
+    strollerTaken = false;
+    infiniteInvincible = false;
+    bossSpawned = false;
+    cleared = false;
+    hideStrollerNotice();
     character.classList.remove('invincible', 'invincible-warning');
     if (invincibleHud) invincibleHud.hidden = true;
     if (charCountdown) charCountdown.hidden = true;
@@ -970,18 +1074,22 @@
 
   // the actual impact (visible spark + hit-stop freeze + shake) has already played out by
   // the time this runs (see triggerHit) - this just shows the score screen afterward
-  function endGame(){
+  function endGame(isClear){
     state = 'over';
-    playGameOverSfx();
+    if (!isClear) playGameOverSfx();
 
     var finalScore = Math.floor(score);
     finalScoreEl.textContent = String(finalScore);
 
     lastFinalScore = finalScore;
     lastFinalDate = formatToday();
+    lastFinalCleared = !!isClear;
     newRecordBox.hidden = true;
     nameInput.hidden = false;
     submitNameBtn.hidden = false;
+    // 점수/순위/이름 입력은 게임오버와 완전히 동일하고, 실망한 표정 그림과 문구만 바꾼다.
+    if (gameoverPic) gameoverPic.hidden = !!isClear;
+    if (gameOverTitleEl) gameOverTitleEl.textContent = isClear ? '🎉 왕을 무찔렀어요!' : '크림아! 발 닦자!';
 
     // the game-over screen itself only appears once the TOP10 fetch has fully settled -
     // the spinner overlay covers the wait instead, so it's never mistaken for a freeze.
@@ -1038,7 +1146,7 @@
     el.className = 'ko-pop-fx ' + color;
     el.style.left = cx + 'px';
     el.style.top = cy + 'px';
-    el.textContent = '+50';
+    el.textContent = '+' + KO_SCORE;
     effectsLayer.appendChild(el);
     setTimeout(function(){ el.remove(); }, 550);
   }
@@ -1066,7 +1174,7 @@
   }
 
   var LIFE_LOSS_FLASH_MS = 260; // shorter than the full HIT_STOP_MS gameover freeze - the
-                                  // run keeps going, this is just a quick flash/shake beat
+    // run keeps going, this is just a quick flash/shake beat
   // called when a hit happens while more than one family member is still present: the
   // family "demotes" one level (온가족 -> 여자+강아지 -> 강아지 혼자) instead of ending the
   // run outright - only a hit while the dog is already alone (lifeState 1) triggers the
@@ -1127,16 +1235,16 @@
 
   // picks an obstacle type, gradually mixing in tougher variety as the run gets harder.
   // obstacle roster:
-  //   💩 poop  - flat & small, ground-based, always has to be jumped, lethal
-  //   🐶 dog(now 🐭 mouse art) - ground-based, also has to be jumped, but closes in
-  //              faster than the scroll speed so its timing feels different from poop
-  //   ⭐ star  - flies at head height in the air lane; a pure +100 bonus pickup now, not a
-  //              hazard, so it's totally fine for it to line up with a ground obstacle -
-  //              no adjacency restriction needed the way the old crow hazard required.
+  // 💩 poop - flat & small, ground-based, always has to be jumped, lethal
+  // 🐶 dog(now 🐭 mouse art) - ground-based, also has to be jumped, but closes in
+  // faster than the scroll speed so its timing feels different from poop
+  // ⭐ star - flies at head height in the air lane; a pure +100 bonus pickup now, not a
+  // hazard, so it's totally fine for it to line up with a ground obstacle -
+  // no adjacency restriction needed the way the old crow hazard required.
   var lastSpawnType = null;
   var DOG_COMBO_CHANCE = 0.38; // chance a poop gets a dog paired tightly right behind it
-                               // (one jump clears both) instead of the dog ever showing up
-                               // at its own random distance from a poop that's still on screen
+    // (one jump clears both) instead of the dog ever showing up
+    // at its own random distance from a poop that's still on screen
 
   function pickObstacleType(){
     var diff = Math.min(1, (speedMultiplier - 1) / 1.6);
@@ -1226,6 +1334,28 @@
       if (charCountdownNum) charCountdownNum.textContent = INVINCIBLE_DURATION;
     }
     playPickupSfx();
+  }
+
+  // 유모차 아이템(최종 보스 직전)으로 발동하는 무적: 시간 제한이 없다. 기존 게이지 무적의
+  // 카운트다운 로직과 섞이지 않게 별도 플래그(infiniteInvincible)로 관리하고, 남은 초 대신
+  // 무한 기호를 띄운다.
+  function activateInfiniteInvincibility(){
+    invincible = true;
+    infiniteInvincible = true;
+    invincibleTimer = 0;
+    character.classList.add('invincible');
+    character.classList.remove('invincible-warning');
+    charImg.src = IMG_INVINCIBLE_CHAR;
+    if (invincibleHud){
+      invincibleHud.hidden = false;
+      invincibleTimeEl.textContent = '∞';
+    }
+    if (charCountdown){
+      charCountdown.hidden = false;
+      if (charCountdownNum) charCountdownNum.textContent = '∞';
+    }
+    playPickupSfx();
+    playMilestoneSfx();
   }
 
   // spawns the bonus item (크림이네 트릿 jar art) directly in the air lane (no warning delay
@@ -1318,6 +1448,146 @@
     el.innerHTML = '<img src="' + src + '" alt="">';
     effectsLayer.appendChild(el);
     setTimeout(function(){ el.remove(); }, MILESTONE_FX_MS + 120);
+  }
+
+  // ---- 마지막 곡의 남은 시간에 맞춰 진행되는 엔딩 시퀀스 ----
+  // bgmCheckCrossfade에서 마지막 곡의 timeupdate마다 호출된다 (초당 4회쯤).
+  function checkFinalSequence(remain){
+    if (state !== 'playing') return;
+    if (!finalNoticeShown && remain <= FINAL_NOTICE_LEAD){
+      finalNoticeShown = true;
+      beginFinalPhase();
+    }
+    if (finalNoticeShown && !finalItemSpawned && remain <= FINAL_ITEM_LEAD){
+      finalItemSpawned = true;
+      hideStrollerNotice();
+      spawnFinalStroller();
+    }
+  }
+
+  function beginFinalPhase(){
+    finalPhase = true;
+    // 진행 중인 까마귀 예고는 취소한다 - 2초 뒤에 까마귀가 유모차와 겹쳐 나오면 안 된다.
+    if (crowWarnTimer){ clearTimeout(crowWarnTimer); crowWarnTimer = null; }
+    if (crowWarningEl) crowWarningEl.hidden = true;
+    crowPending = false;
+    // 아직 안 나온 가족 복귀 보너스도 이 구간에서는 나오지 않게 막는다 (유모차와 혼동 방지).
+    bonusDueAt = null;
+    showStrollerNotice();
+  }
+
+  // 까마귀의 빨간 경고와 달리 "위험"이 아니라 "먹어야 한다"는 신호라서, 아이템 뒤에 깔리는
+  // 금색 별과 같은 톤으로 만든다.
+  function showStrollerNotice(){
+    if (!effectsLayer || strollerNoticeEl) return;
+    var rect = app.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'stroller-notice';
+    el.style.fontSize = (rect.height * 0.085).toFixed(1) + 'px';
+    el.innerHTML = '<span class="sn-star">★</span><span class="sn-text">유모차를 먹어라!</span>';
+    effectsLayer.appendChild(el);
+    strollerNoticeEl = el;
+    playPickupSfx();
+  }
+  function hideStrollerNotice(){
+    if (strollerNoticeEl){ strollerNoticeEl.remove(); strollerNoticeEl = null; }
+  }
+
+  // 게이지 왼쪽에 있는 그 유모차 이미지 그대로. 공중/중간/바닥 중 한 곳에 무작위로,
+  // 한 판에 단 한 번만 등장한다 (바닥이면 점프 없이도 먹을 수 있다).
+  function spawnFinalStroller(){
+    var rect = app.getBoundingClientRect();
+    var x = rect.width + 20;
+    var sh = rect.height * FINAL_STROLLER_FRAC;
+    var sw = sh;
+    var lanes = [STAR_ELEV_HIGH, STAR_ELEV_MID, 0];
+    var elev = lanes[Math.floor(Math.random() * lanes.length)];
+    var el = document.createElement('div');
+    el.className = 'obstacle star final-stroller';
+    el.style.left = x + 'px';
+    el.style.width = sw + 'px';
+    el.style.height = sh + 'px';
+    el.style.bottom = (GROUND_H + elev) + 'px';
+    el.innerHTML =
+      '<div class="star-behind"></div>' +
+      '<img class="star-img" src="' + IMG_STROLLER + '" alt="">';
+    obstaclesLayer.appendChild(el);
+    obstacles.push({ el: el, x: x, w: sw, h: sh, elevation: elev, type: 'finalstroller' });
+  }
+
+  // 보스 음원이 시작되는 순간(= 마지막 곡이 완전히 끝난 순간) 호출된다.
+  function beginFinalBoss(){
+    if (bossMusicOn) return;
+    bossMusicOn = true;
+    // instant: 겹치지 않고 바로 시작, loop 없음 -> 한 번만 재생되고 끝난다.
+    bgmPlayTrack(window.BGM_FINAL_BOSS || window.BGM_END, { instant: true });
+    if (state === 'playing') spawnBoss();
+  }
+
+  // 일반 똥처럼 바닥에 붙어 있지만, 2단 점프 최고점보다 높아서 넘어갈 수 없는 벽이다.
+  function spawnBoss(){
+    if (bossSpawned) return;
+    bossSpawned = true;
+    finalPhase = true; // 보스전 동안에도 일반 장애물은 나오지 않는다
+    var rect = app.getBoundingClientRect();
+    var bh = rect.height * BOSS_H_FRAC;
+    var bw = bh * bossAspect();
+    var x = rect.width + 20;
+    var el = document.createElement('div');
+    el.className = 'obstacle boss';
+    el.style.left = x + 'px';
+    el.style.bottom = GROUND_H + 'px';
+    el.style.width = bw + 'px';
+    el.style.height = bh + 'px';
+    el.innerHTML = '<img class="boss-img" src="' + BOSS_IMG + '" alt="">';
+    obstaclesLayer.appendChild(el);
+    obstacles.push({ el: el, x: x, w: bw, h: bh, elevation: 0, type: 'boss' });
+  }
+
+  // 무적 상태로 보스에 부딪혔을 때: 일반 장애물처럼 날아가지 않고 제자리에서 다운 이미지로
+  // 바뀐 뒤 그대로 멈춘다. 동시에 축하 메시지가 뜨고 게임이 클리어로 끝난다.
+  function defeatBoss(o, idx){
+    obstacles.splice(idx, 1);
+    var img = o.el.querySelector('.boss-img');
+    if (img) img.src = BOSS_DOWN_IMG;
+    o.el.classList.add('downed');
+    score += KO_SCORE;
+    spawnKoPopFx(o.x + o.w / 2, groundTop - o.h * 0.6);
+    spawnImpactEffect(o.x + o.w / 2, groundTop - o.h * 0.45);
+    playObstacleKoSfx();
+    playMilestoneSfx();
+    // 축하 메시지가 화면 가운데를 크게 덮어서 다운된 보스를 가린다. 다운된 모습을 먼저
+    // 잠깐 보여준 뒤에 메시지가 터지도록 살짝 늦춘다.
+    setTimeout(spawnClearMessage, CLEAR_MSG_DELAY_MS);
+    triggerClear();
+  }
+
+  // 10,000점 돌파 연출과 같은 자리(화면 X축 가운데)에 50% 더 크게. 돌파 연출과 달리
+  // 사라지지 않고 그대로 남는다.
+  function spawnClearMessage(){
+    if (!effectsLayer) return;
+    var rect = app.getBoundingClientRect();
+    var w = rect.height * CLEAR_MSG_FRAC;
+    var el = document.createElement('div');
+    el.className = 'clear-msg-fx';
+    el.style.left = (rect.width / 2 - w / 2) + 'px';
+    el.style.top = (rect.height * CLEAR_MSG_TOP_FRAC) + 'px';
+    el.style.width = w + 'px';
+    el.innerHTML = '<img src="' + CLEAR_MSG_IMG + '" alt="">';
+    effectsLayer.appendChild(el);
+  }
+
+  // 클리어: 화면을 그 상태로 멈춰 다운된 보스와 축하 메시지를 보여준 뒤 점수 화면으로 넘어간다.
+  // 게임오버와 달리 stopMusic()을 부르지 않는다 - 보스 음원이 끝까지 재생된 뒤 자연히 멈춘다.
+  function triggerClear(){
+    if (state !== 'playing') return;
+    state = 'cleared';
+    cleared = true;
+    character.classList.remove('run');
+    app.classList.remove('gauge-burst');
+    void app.offsetWidth;
+    app.classList.add('gauge-burst');
+    setTimeout(function(){ endGame(true); }, CLEAR_HOLD_MS);
   }
 
   function spawnGroundObstacle(type, skipCombo, xOffset){
@@ -1436,7 +1706,7 @@
       // (plateau) until DIFFICULTY_DELAY_SECONDS have elapsed, then resumes at the normal rate -
       // see the constants above for why.
       var rampActive = (gameTime <= EASE_WINDOW_SECONDS) ||
-                        (gameTime > EASE_WINDOW_SECONDS + DIFFICULTY_DELAY_SECONDS);
+        (gameTime > EASE_WINDOW_SECONDS + DIFFICULTY_DELAY_SECONDS);
       if (rampActive && !wasRampActive){
         // just came off the plateau - restart the level-up counters from right now so the
         // first tick afterward doesn't fire a backlog of level-ups all at once.
@@ -1447,7 +1717,7 @@
 
       if (rampActive &&
           (gameTime - lastLevelTime >= LEVEL_UP_SECONDS ||
-           obstaclesPassed - lastLevelCount >= LEVEL_UP_OBSTACLES)){
+          obstaclesPassed - lastLevelCount >= LEVEL_UP_OBSTACLES)){
         lastLevelTime = gameTime;
         lastLevelCount = obstaclesPassed;
         var levelUpFactor = (gameTime <= EASE_WINDOW_SECONDS) ? EARLY_LEVEL_UP_FACTOR : LEVEL_UP_FACTOR;
@@ -1477,7 +1747,8 @@
 
       // paused while a crow's 2s warning is showing, so nothing else can spawn into that
       // window and create an unfair overlap (see beginCrowSequence).
-      if (!crowPending){
+      // 엔딩 시퀀스(유모차 예고 ~ 보스전) 동안에는 일반 장애물을 전혀 만들지 않는다.
+      if (!crowPending && !finalPhase){
         spawnTimer += dt * 1000;
         if (spawnTimer >= nextSpawnIn){
           spawnTimer = 0;
@@ -1517,7 +1788,7 @@
         }
       }
 
-      if (invincible){
+      if (invincible && !infiniteInvincible){
         invincibleTimer -= dt;
         if (invincibleTimer <= 1.5) character.classList.add('invincible-warning');
         if (invincibleTimer <= 0){
@@ -1542,7 +1813,7 @@
       // recovery bonus: appears exactly 25s after the most recent life-loss, targeting
       // whichever family member is still missing (see triggerLifeLoss) - never both at
       // once, since only one level is ever missing-and-pending at a time.
-      if (lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){
+      if (!finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){
         spawnBonusItemNow(lifeState === 1 ? 'woman' : 'man');
       }
 
@@ -1553,11 +1824,11 @@
       // an obstacle that's already well behind where the front of the character is jumping.
       var lifeCfg = LIFE_STATE_CFG[lifeState] || LIFE_STATE_CFG[3];
       var CHAR_HITBOX_FRONT = lifeCfg.hitFront; // right edge of the hitbox, as a fraction of
-                                                 // sprite width - narrows as lives are lost
-      var CHAR_HITBOX_REAR = lifeCfg.hitRear;   // left/rear edge - also narrows with lifeState
+        // sprite width - narrows as lives are lost
+      var CHAR_HITBOX_REAR = lifeCfg.hitRear; // left/rear edge - also narrows with lifeState
       var charW = character.offsetWidth * (CHAR_HITBOX_FRONT - CHAR_HITBOX_REAR);
       var charH = character.offsetHeight * 0.55; // a bit more forgiving now that the character
-                                                  // reads visually smaller relative to obstacles
+        // reads visually smaller relative to obstacles
       var charLeft = charLeftPx + charOffsetX + character.offsetWidth * CHAR_HITBOX_REAR;
       var charTop = groundTop - jumpY - charH;
 
@@ -1593,7 +1864,7 @@
         var oTop = groundTop - o.h - (o.elevation || 0) - (o.hop || 0);
 
         var overlapping = charLeft < oLeft + oW && charLeft + charW > oLeft &&
-                           charTop < oTop + o.h && charTop + charH > oTop;
+          charTop < oTop + o.h && charTop + charH > oTop;
 
         // the air-lane star is a pure bonus pickup now, not a hazard - collecting it
         // never hurts (jumping or not), just adds points and disappears with a little fx.
@@ -1629,6 +1900,32 @@
           continue;
         }
 
+        // ---- 최종 유모차 아이템: 먹으면 시간 무한 무적이 발동한다 (한 판에 한 번뿐) ----
+        if (overlapping && o.type === 'finalstroller'){
+          strollerTaken = true;
+          o.el.remove();
+          obstacles.splice(i, 1);
+          activateInfiniteInvincibility();
+          spawnImpactEffect(o.x + o.w / 2, oTop + o.h / 2);
+          app.classList.remove('gauge-burst');
+          void app.offsetWidth;
+          app.classList.add('gauge-burst');
+          continue;
+        }
+
+        // ---- 최종 보스 ----
+        // 무적이면 격파(클리어), 아니면 목숨이 남아 있어도 즉시 게임오버. 보스는 넘을 수
+        // 없는 벽이라 "피했는데 아무 일도 없는" 애매한 상태가 생기지 않는다.
+        if (overlapping && o.type === 'boss'){
+          var bx1 = Math.max(charLeft, oLeft);
+          var bx2 = Math.min(charLeft + charW, oLeft + oW);
+          var by1 = Math.max(charTop, oTop);
+          var by2 = Math.min(charTop + charH, oTop + o.h);
+          if (invincible) defeatBoss(o, i);
+          else triggerHit((bx1 + bx2) / 2, (by1 + by2) / 2);
+          break;
+        }
+
         if (overlapping && invincible){
           // plow straight through instead of dying - the obstacle is the one that "dies"
           // here: it flies off spinning (randomized direction/spin) and fades out, instead
@@ -1637,7 +1934,7 @@
           spawnImpactEffect(o.x + o.w / 2, oTop + o.h / 2);
           spawnKoPopFx(o.x + o.w / 2, oTop - 10);
           playPlowSfx();
-          score += 50;
+          score += KO_SCORE;
           triggerObstacleKO(o.el);
           obstacles.splice(i, 1);
           continue;
@@ -1669,7 +1966,8 @@
         // character while you were airborne over it. the air-lane star isn't a hazard
         // (it's handled separately above, the instant it's collected), so a missed star
         // just passes by with no penalty and no dodge reward.
-        if (!o.rewarded && o.type !== 'star' && o.type !== 'bonus' && (oLeft + oW) < charLeft){
+        if (!o.rewarded && o.type !== 'star' && o.type !== 'bonus' &&
+            o.type !== 'finalstroller' && o.type !== 'boss' && (oLeft + oW) < charLeft){
           o.rewarded = true;
           if (isJumping){
             spawnNearMissEffect(o.x + o.w / 2, oTop - 14);

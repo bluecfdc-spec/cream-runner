@@ -685,10 +685,13 @@
      assets/bgm_manifest.js) as a continuous right-to-left scrolling marquee (never
      truncated, however long the title gets) next to a small CD image that spins
      continuously while a track is playing - both toggled together via JS
-     (animation-play-state, set from stopMusic/bgmPlayTrack/bgmSetTitle in game.js). ---- */
+     (animation-play-state, set from stopMusic/bgmPlayTrack/bgmSetTitle in game.js).
+     오른쪽 끝 여백은 #bgmHud의 right(2px) + .bgmTitleCopy의 padding-right(8px, 마퀴가 한 바퀴
+     돌 때 글자 사이 간격) 합인 10px이 최대치다. 이 둘이 곧 "우측 여백"이라 더 붙이거나
+     떼려면 이 두 값을 같이 조정하면 된다. ---- */
   #bgmHud{
     position:absolute;
-    right:4px;
+    right:2px;
     bottom:2px;
     z-index:5;
     max-width:56%;
@@ -724,7 +727,7 @@
   .bgmTitleCopy{
     display:block;
     white-space:nowrap;
-    padding-right:16px;
+    padding-right:8px;
     font-family:'Baloo 2',sans-serif;
     font-weight:700;
     font-size:14.4px;

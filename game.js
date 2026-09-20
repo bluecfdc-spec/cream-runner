@@ -262,16 +262,19 @@
     playTone(sfxGain, 2093.0, t + 0.40, 0.22, 0.12, 'sine');
   }
 
-  // ---- BGM v2: open_fix plays fixed at game start, then all tracks in assets/bgm_manifest.js
-  // (BGM_MIDDLE) play once each in random order, then end_fix loops forever. Two <audio>
-  // elements are alternated so every track change can crossfade (1.5s fade-out/fade-in)
+  // ---- BGM v3: open_fix plays fixed at game start, then the tracks in assets/bgm_manifest.js
+  // play once each - BGM_CYCLE_1 shuffled first, then BGM_CYCLE_2 shuffled (order is random
+  // WITHIN each cycle, never between cycles) - and finally end_fix. Two <audio>
+  // elements are alternated so every track change can crossfade (BGM_FADE_MS, equal-power)
   // instead of cutting sharply. The track list itself lives entirely in bgm_manifest.js so
   // adding/removing/swapping songs later - including swapping open_fix/end_fix - never
   // needs touching this file. Everything here runs off audio "timeupdate"/"ended" events and
   // a couple of short requestAnimationFrame fades, so it never touches the game loop and has
   // zero effect on play time or performance.
   var BGM_VOLUME = 0.55;
-  var BGM_FADE_MS = 1500;
+  // 곡이 바뀔 때 겹쳐 재생되는 시간. 짧으면 "뚝 끊기고 갑자기 넘어간다"는 느낌이 나서
+  // 넉넉하게 잡았다 (assets/tune.js 에서 window.BGM_FADE_MS 로 조정 가능).
+  var BGM_FADE_MS = window.BGM_FADE_MS || 4000;
   var bgmEls = [document.getElementById('bgm-a'), document.getElementById('bgm-b')];
   var bgmActive = 0;
   var bgmQueue = [];
@@ -296,19 +299,39 @@
     }
     return a;
   }
+  // 재생 순서: open_fix -> BGM_CYCLE_1(무작위) -> BGM_CYCLE_2(무작위) -> end_fix.
+  // 사이클 "안에서만" 순서가 섞이고 사이클끼리의 앞뒤는 절대 바뀌지 않으므로, 1차 사이클
+  // 네 곡이 모두 끝나야 2차 사이클로 넘어간다. 두 배열이 없으면 예전처럼 BGM_MIDDLE 하나를
+  // 통째로 섞는 방식으로 동작한다 (하위 호환).
   function bgmBuildQueue(){
-    var mid = (window.BGM_MIDDLE || []).slice();
-    bgmQueue = [window.BGM_OPEN].concat(bgmShuffle(mid));
+    var c1 = window.BGM_CYCLE_1 || window.BGM_MIDDLE || [];
+    var c2 = window.BGM_CYCLE_2 || [];
+    bgmQueue = [window.BGM_OPEN].concat(bgmShuffle(c1), bgmShuffle(c2));
     bgmQueueIdx = -1;
   }
+  // 같은 <audio>에 대해 페이드가 새로 시작되면 이전 페이드는 즉시 버린다. 이게 없으면
+  // (예: 크로스페이드 도중에 죽고 바로 다시하기) 지난 페이드가 뒤늦게 끝나면서 방금 새로
+  // 시작한 곡의 볼륨을 0으로 덮거나 pause()를 불러서 음악이 조용히 멈춰버릴 수 있다.
+  var bgmFadeGen = [0, 0];
+  function bgmCancelFades(){ bgmFadeGen[0]++; bgmFadeGen[1]++; }
   function bgmFade(el, from, to, ms, done){
+    var idx = bgmEls.indexOf(el);
+    var gen = (idx >= 0) ? ++bgmFadeGen[idx] : 0;
+    var fadingIn = to > from;
     var start = null;
     function step(ts){
+      if (idx >= 0 && bgmFadeGen[idx] !== gen) return; // 더 최신 페이드에 밀렸다
       if (!start) start = ts;
       var p = Math.min(1, (ts - start) / ms);
-      el.volume = from + (to - from) * p;
+      // 등청감(equal-power) 크로스페이드. 볼륨을 직선으로 옮기면 두 곡이 겹치는 동안
+      // 전체 음량이 한 번 푹 꺼졌다 올라오는 것처럼 들려서 전환이 급하게 느껴진다.
+      // 내려가는 쪽은 cos, 올라오는 쪽은 sin 곡선을 쓰면 두 곡의 합이 일정하게 유지되어
+      // 훨씬 부드럽게 넘어간다.
+      var e = fadingIn ? Math.sin(p * Math.PI / 2) : 1 - Math.cos(p * Math.PI / 2);
+      var v = from + (to - from) * e;
+      el.volume = v < 0 ? 0 : (v > 1 ? 1 : v);
       if (p < 1) requestAnimationFrame(step);
-      else if (done) done();
+      else { el.volume = to; if (done) done(); }
     }
     requestAnimationFrame(step);
   }
@@ -358,6 +381,8 @@
     bgmSetTitle(track);
     bgmSetSpinning(true);
     if (opts.instant) {
+      bgmCancelFades();
+      nextEl.volume = BGM_VOLUME;
       if (curEl) { try { curEl.pause(); } catch (e) {} }
     } else if (curEl && !curEl.paused) {
       bgmFade(curEl, curEl.volume, 0, BGM_FADE_MS, function(){ try { curEl.pause(); } catch (e) {} });
@@ -407,6 +432,7 @@
     bgmAdvance();
   }
   function stopMusic(){
+    bgmCancelFades();
     bgmEls.forEach(function(el){ if (el) { try { el.pause(); } catch (e) {} } });
     bgmSetSpinning(false);
   }

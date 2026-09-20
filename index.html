@@ -113,7 +113,7 @@
      add/remove/swap songs later; must load before game.js. -->
 <script src="assets/bgm_manifest.js"></script>
 <!-- 3-lives family recovery system assets: run/jump art per life-state, woman/man recovery
-     bonus item art, and the 오빠!/엄마! call-message overlay art. Loaded as plain-text .js
+     bonus item art, and the 아빠!/엄마! call-message overlay art. Loaded as plain-text .js
      files that set window.* globals (double-base64-encoding workaround for pushing binary
      image data through the GitHub Contents API as text) - must load before game.js. -->
 <script src="assets/char_run_1.js"></script>
@@ -131,7 +131,13 @@
 <script src="assets/char_jump_3.js"></script>
 <script src="assets/item_woman.js"></script>
 <script src="assets/item_man.js"></script>
-<script src="assets/call_oppa.js"></script>
+<!-- 남자(아빠) 복귀 보너스를 먹었을 때 뜨는 "아빠!" 문구 이미지. 예전 "오빠!" 이미지
+     (assets/call_oppa.js, 지금은 사용하지 않음)를 대체한 것이라 변수 이름만 CALL_IMG_OPPA
+     그대로 쓴다. 조각들이 순서대로 이어붙여지므로 순서를 바꾸면 안 된다. -->
+<script src="assets/call_appa_p1.js"></script>
+<script src="assets/call_appa_p2.js"></script>
+<script src="assets/call_appa_p3.js"></script>
+<script src="assets/call_appa_p4.js"></script>
 <script src="assets/call_mom.js"></script>
 <!-- 점수 구간 돌파(1,000/5,000/10,000점) 축하 이미지 + BGM CD 이미지: 배경을 지운 WebP를
      base64 문자열로 담아둔 파일들 (위 캐릭터 이미지들과 같은 방식). 한 장이 여러 조각(_pN)으로

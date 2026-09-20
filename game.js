@@ -56,15 +56,21 @@
   // 왼쪽 상단(캐릭터 뒷편)에 축하 이미지가 1초간 떴다 사라지고 축하음이 한 번 울린다.
   // 순수 연출이라 obstacles에 절대 들어가지 않고 충돌/점프/게임오버 판정과 무관하다.
   // 구간을 추가/변경하려면 SCORE_MILESTONES 배열만 고치면 된다 (이미지는 assets/ 안에).
+  // 이미지 자체는 assets/milestone_*_pN.js 안에 base64 문자열로 들어있다 (GitHub에 텍스트로만
+  // 올릴 수 있어서 캐릭터 이미지들과 같은 방식). 혹시 그 파일들이 빠지면 같은 이름의 실제
+  // 이미지 파일로 자동 대체된다.
+  function milestoneSrc(b64, filePath){
+    return b64 ? ('data:image/webp;base64,' + b64) : filePath;
+  }
   var SCORE_MILESTONES = [
-    { score: 1000,  img: "assets/milestone_1000.webp" },
-    { score: 5000,  img: "assets/milestone_5000.webp" },
-    { score: 10000, img: "assets/milestone_10000.webp" }
+    { score: 1000,  img: milestoneSrc(window.MILESTONE_IMG_1000,  "assets/milestone_1000.webp") },
+    { score: 5000,  img: milestoneSrc(window.MILESTONE_IMG_5000,  "assets/milestone_5000.webp") },
+    { score: 10000, img: milestoneSrc(window.MILESTONE_IMG_10000, "assets/milestone_10000.webp") }
   ];
   var MILESTONE_FX_MS = 1000;      // 화면에 보이는 시간 (1초)
   var MILESTONE_SIZE_FRAC = 0.286; // 오빠!/엄마! 문구(0.26)보다 10% 큰 폭
   var milestoneIdx = 0;            // 다음에 터질 구간 (reset()에서 0으로 초기화)
-  // 1초만 보이는 연출이라 그 순간에 처음 받아오면 늦게 떠서 놓칠 수 있으니 미리 받아둔다.
+  // 1초만 보이는 연출이라 그 순간에 처음 받아오면 늦게 떠서 놓칠 수 있으니 미리 디코딩해둔다.
   SCORE_MILESTONES.forEach(function(m){ var pre = new Image(); pre.src = m.img; });
 
   // ---- 3-lives family recovery system: state 3 = 온가족(원본 트리오), 2 = 여자+강아지,
@@ -268,6 +274,11 @@
   var bgmQueueIdx = -1;
   var bgmAdvancing = false;
   var bgmCdImgEl = document.getElementById('bgmCdImg');
+  // CD 이미지도 배경을 지운 WebP를 base64로 assets/bgm_cd.js에 담아뒀다 (파일 업로드 없이
+  // 바로 보이게). 그 파일이 없으면 assets/bgm/cd.png 파일을 대신 찾는다.
+  if (bgmCdImgEl){
+    bgmCdImgEl.src = window.BGM_CD_IMG ? ('data:image/webp;base64,' + window.BGM_CD_IMG) : 'assets/bgm/cd.png';
+  }
   var bgmTitleTrackEl = document.getElementById('bgmTitleTrack');
   var bgmTitleCopyEls = document.querySelectorAll('.bgmTitleCopy');
   var BGM_MARQUEE_SPEED = 45; // px/sec - constant scroll speed regardless of title length

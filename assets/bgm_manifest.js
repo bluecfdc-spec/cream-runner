@@ -9,7 +9,9 @@
 window.BGM_FOLDER = 'assets/bgm/';
 
 // 게임을 시작하면 항상 고정으로 먼저 재생되는 곡
-window.BGM_OPEN = { file: 'open_fix.mp3', title: '동물의 숲 OST' };
+// (업로드된 실제 파일명이 확장자가 두 번 붙은 'open_fix.mp3.mp3' 이라 그대로 가리킨다.
+//  나중에 파일명을 open_fix.mp3 로 고치면 이 줄도 같이 고쳐야 한다.)
+window.BGM_OPEN = { file: 'open_fix.mp3.mp3', title: '동물의 숲 OST' };
 
 // 아래 중간 곡들이 무작위 순서로 한 번씩 모두 재생된 뒤, 무한 반복되는 마지막 곡
 window.BGM_END = { file: 'end_fix.mp3', title: '무한루프' };

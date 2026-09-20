@@ -320,16 +320,19 @@
     }
     return a;
   }
-  // 재생 순서: open_fix -> BGM_CYCLE_1(무작위) -> BGM_CYCLE_2(무작위) -> end_fix.
-  // 사이클 "안에서만" 순서가 섞이고 사이클끼리의 앞뒤는 절대 바뀌지 않으므로, 1차 사이클
-  // 네 곡이 모두 끝나야 2차 사이클로 넘어간다. 두 배열이 없으면 예전처럼 BGM_MIDDLE 하나를
-  // 통째로 섞는 방식으로 동작한다 (하위 호환).
+  // 재생 순서는 bgm_manifest.js가 정한다. BGM_PLAYLIST가 있으면 그 배열의 순서를 그대로
+  // 쓰고(무작위 없음), 없으면 예전 방식인 BGM_CYCLE_1(무작위) -> BGM_CYCLE_2(무작위)로
+  // 동작한다. 사이클 방식에서는 사이클 "안에서만" 순서가 섞이고 사이클끼리의 앞뒤는 절대
+  // 바뀌지 않는다. 두 배열도 없으면 BGM_MIDDLE 하나를 통째로 섞는다 (하위 호환).
+  // 어느 방식이든 맨 앞은 항상 BGM_OPEN이고, 맨 뒤 곡이 끝나면 엔딩(보스)으로 넘어간다.
   function bgmBuildQueue(){
+    var fixed = window.BGM_PLAYLIST;
     var c1 = window.BGM_CYCLE_1 || window.BGM_MIDDLE || [];
     var c2 = window.BGM_CYCLE_2 || [];
     // 테스트 모드(?boss=1)에서는 오프닝곡 하나만 넣어서, 그 곡이 곧 마지막 곡이 되게 한다.
-    bgmQueue = TEST_BOSS ? [window.BGM_OPEN]
-      : [window.BGM_OPEN].concat(bgmShuffle(c1), bgmShuffle(c2));
+    if (TEST_BOSS) bgmQueue = [window.BGM_OPEN];
+    else if (fixed && fixed.length) bgmQueue = [window.BGM_OPEN].concat(fixed);
+    else bgmQueue = [window.BGM_OPEN].concat(bgmShuffle(c1), bgmShuffle(c2));
     bgmQueueIdx = -1;
   }
   // 같은 <audio>에 대해 페이드가 새로 시작되면 이전 페이드는 즉시 버린다. 이게 없으면

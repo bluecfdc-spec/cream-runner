@@ -554,7 +554,7 @@
   // ---- 최종 보스전 (엔딩) ----
   // 2차 사이클의 마지막 곡이 끝나기 5초 전부터 이 순서로 진행된다:
   // 5초 전 : 일반 장애물 생성 중단 + "유모차를 먹어라!" 예고 표시
-  // 3초 전 : 유모차 아이템이 공중/중간/바닥 중 한 곳에 딱 한 번만 등장
+  // 3초 전 : 유모차 아이템이 공중/바닥 중 한 곳에 딱 한 번만 등장
   // 곡 종료 : Final_Boss 음원이 겹침 없이 바로 시작 + 악마 보스 등장
   // 유모차를 먹으면 무적이 "시간 무한"으로 발동해 보스를 무찌를 수 있고, 못 먹으면 보스에
   // 부딪히는 순간 목숨이 남아 있어도 즉시 게임오버다 (보스는 2단 점프로도 넘을 수 없는 높이).
@@ -580,6 +580,16 @@
   // 별(트릿) 아이템보다 넓이가 3배 가까이 커서 너무 쉽게 먹혔다. 0.14면 +100점 별 아이템과
   // 화면에서 차지하는 넓이가 거의 같아져서, 제대로 노려야 먹을 수 있다.
   var FINAL_STROLLER_FRAC = window.FINAL_STROLLER_FRAC || 0.14;
+  // 유모차가 뜨는 위치. 바닥에서 띄우는 높이를 appH 대비 비율로 적고, 그중 하나가 무작위로
+  // 뽑힌다. 기본은 "공중 44%" 와 "바닥 0%" 두 곳이다.
+  // 공중(44%): 판정 박스가 닿으려면 22.5%까지 떠야 해서 2단 점프가 필요하다. 보스 속도에서
+  // 1단 점프는 그 높이에 머무는 시간이 부족해 닿지 않는다.
+  // 바닥(0%): 뛰지 말고 그냥 달려가야 먹는다. 급해서 반사적으로 점프하면 유모차 위를 넘어가
+  // 버려서 놓친다 (점프 최고점 40% > 유모차 높이 14%).
+  // 즉 "떴다 -> 뛸까 말까"를 순간 판단하는 구간이 된다. 중간 높이(9%)는 서서 달려도 그냥
+  // 먹혀서 공짜였기 때문에 뺐다. 값은 assets/tune.js 에서 window.FINAL_STROLLER_LANES 로
+  // 바꿀 수 있다 (예: [0.51, 0] 로 하면 공중이 프레임 단위로 어려워진다).
+  var FINAL_STROLLER_LANES = window.FINAL_STROLLER_LANES || [0.44, 0];
   var BOSS_H_FRAC = window.BOSS_H_FRAC || 0.72; // 2단 점프 최고점(0.64)보다 커야 벽이 된다
   var CLEAR_MSG_FRAC = window.CLEAR_MSG_FRAC || 0.7254; // 10,000점 돌파(0.4836)보다 50% 큼
   var CLEAR_MSG_TOP_FRAC = window.CLEAR_MSG_TOP_FRAC || 0.11; // 돌파 연출과 같은 높이
@@ -1588,15 +1598,15 @@
     if (strollerNoticeEl){ strollerNoticeEl.remove(); strollerNoticeEl = null; }
   }
 
-  // 게이지 왼쪽에 있는 그 유모차 이미지 그대로. 공중/중간/바닥 중 한 곳에 무작위로,
-  // 한 판에 단 한 번만 등장한다 (바닥이면 점프 없이도 먹을 수 있다).
+  // 게이지 왼쪽에 있는 그 유모차 이미지 그대로. FINAL_STROLLER_LANES 중 한 곳에 무작위로,
+  // 한 판에 단 한 번만 등장한다 (공중이면 2단 점프, 바닥이면 뛰지 말고 달려가야 먹는다).
   function spawnFinalStroller(){
     var rect = app.getBoundingClientRect();
     var x = rect.width + 20;
     var sh = rect.height * FINAL_STROLLER_FRAC;
     var sw = sh;
-    var lanes = [STAR_ELEV_HIGH, STAR_ELEV_MID, 0];
-    var elev = lanes[Math.floor(Math.random() * lanes.length)];
+    var lanes = FINAL_STROLLER_LANES;
+    var elev = rect.height * lanes[Math.floor(Math.random() * lanes.length)];
     var el = document.createElement('div');
     el.className = 'obstacle star final-stroller';
     el.style.left = x + 'px';

@@ -9,7 +9,13 @@
 //
 // ---- 음원 출처 ----
 // 다섯 곡 모두 이 게임을 위해 새로 작곡한 원본입니다. 외부 음원을 쓰지 않았으므로
-// 저작권 문제가 없고, 출처 표기 의무도 없습니다. 시작화면에 "BGM: Claude AI"만 적어뒀습니다.
+// 저작권 문제가 없고, 출처 표기 의무도 없습니다.
+//
+// title 뒤에 붙은 " · music by Claude AI"는 크레딧 겸 마퀴 길이 조절용입니다. BGM 제목
+// 창은 150px인데 짧은 제목(85~130px)은 창 안에 두 번 들어가서 같은 글자가 반복돼 보입니다
+// (마퀴가 매끄럽게 순환하려고 같은 텍스트 두 벌을 이어 붙이는 구조라서 그렇습니다).
+// 제목 길이를 230px 이상으로 만들면 반복 구간이 화면 밖으로 밀려나므로, 제목을 줄일 때는
+// 이 접미사를 함께 지우지 말고 길이를 확인하세요.
 //
 // 재생 순서: BGM_OPEN -> BGM_PLAYLIST에 적은 순서 그대로 -> BGM_FINAL_BOSS
 // 무작위 없이 항상 똑같은 순서로 나옵니다. 마지막 곡이 끝나기 5초 전부터 엔딩 시퀀스
@@ -18,7 +24,7 @@
 window.BGM_FOLDER = 'assets/bgm/';
 
 // 게임을 시작하면 항상 고정으로 먼저 재생되는 곡 (30초)
-window.BGM_OPEN = { file: 'walk.mp3', title: '크림이와 아침 산책' };
+window.BGM_OPEN = { file: 'walk.mp3', title: '크림이와 아침 산책 · music by Claude AI' };
 
 // ---- 본편 재생 목록 (이 순서 그대로, 무작위 없음) ----
 // 오프닝 30초 + 87초 + 86초 + 96초 = 299초. 곡 전환마다 페이드로 2초씩 잘리므로 보스는
@@ -28,16 +34,16 @@ window.BGM_OPEN = { file: 'walk.mp3', title: '크림이와 아침 산책' };
 // 없게 되니, 길이를 늘릴 때는 tune.js의 하드 난이도(똥/쥐)를 같이 내려야 한다.
 // 교체 전 음원과 길이가 초 단위로 같으므로 난이도 균형은 그대로다.
 window.BGM_PLAYLIST = [
-  { file: 'dash.mp3',   title: '신나는 질주' },
-  { file: 'sprint.mp3', title: '멈출 수 없어' },
-  { file: 'castle.mp3', title: '그림자의 성' }
+  { file: 'dash.mp3',   title: '신나는 질주 · music by Claude AI' },
+  { file: 'sprint.mp3', title: '멈출 수 없어 · music by Claude AI' },
+  { file: 'castle.mp3', title: '그림자의 성 · music by Claude AI' }
 ];
 
 // ---- 최종 보스 음원 (42.5초) ----
 // 마지막 곡이 완전히 끝나는 순간, 겹치지 않고 바로 시작해서 딱 한 번만 재생된다
 // (반복 없음). 앞 9초는 보스전이고 그 뒤는 엔딩송이라, 클리어 후 점수 화면까지 이어진다.
-window.BGM_FINAL_BOSS = { file: 'boss.mp3', title: '다 같이 집으로' };
+window.BGM_FINAL_BOSS = { file: 'boss.mp3', title: '다 같이 집으로 · music by Claude AI' };
 
 // 예비용: BGM_FINAL_BOSS 파일이 없을 때만 대신 재생된다. 같은 파일을 가리켜 두었으므로
 // 어느 경로로 가도 없는 파일을 부르는 일은 생기지 않는다.
-window.BGM_END = { file: 'boss.mp3', title: '다 같이 집으로' };
+window.BGM_END = { file: 'boss.mp3', title: '다 같이 집으로 · music by Claude AI' };

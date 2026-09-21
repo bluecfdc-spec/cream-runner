@@ -10,6 +10,7 @@
    4) 시작화면 공지 팝업       - Firestore의 visits/notice 문서를 읽어서 띄운다
    5) 깜짝 이벤트 스위치       - 아래 HALL_EVENT / HALL_UNTIL 참고
    6) 등수 안내 위치           - 점수 바로 아래(순위표 위)로 옮겨 스크롤 없이 보이게 한다
+   7) 제목 문구                - 순위표 제목 앞에 "명예의 전당"을 붙인다
 
    ---- 왜 보정이 필요한가 -----------------------------------------------------------
    game.js는 Firebase SDK의 get() 으로 순위표를 읽는다. SDK는 서버 연결이 순간적으로
@@ -37,7 +38,7 @@
 
      깜짝 이벤트를 발동할 때 아래 두 값만 채워서 이 파일을 다시 올린다.
        HALL_EVENT = 100;
-       HALL_UNTIL = '2026-09-23T23:59:59+09:00';
+       HALL_UNTIL = '2026-09-24T00:00:00+09:00';
      그러면 그 시각까지 100등까지 이름 등록이 열리고, 시각이 지나는 순간
      자동으로 10등으로 돌아간다. HALL_EVENT 가 null 이면 이벤트는 꺼진 상태다.
 
@@ -78,8 +79,23 @@
   if (!list || !board || !over || !scoreEl || !box || !label || !input || !submit) return;
   if (!window.MutationObserver) return;
 
+  /* ---- 순위표 제목 문구 ----------------------------------------------------------
+     index.html 에는 "TOP 3" / "TOP 10" 으로 들어 있다. 그 앞에 "명예의 전당"을
+     여기서 붙인다. index.html 을 건드리지 않으려고 이 파일에서 처리한다.
+     시작화면은 TOP3 조회가 끝난 뒤에 나타나므로 글자가 바뀌는 순간이 보이지 않는다.
+     ------------------------------------------------------------------------------- */
+  var HALL_NAME = '명예의 전당';
+
   var title = board.querySelector('.leaderboard-title');
   var titleBase = title ? title.textContent : '';
+  if (titleBase.indexOf(HALL_NAME) < 0){
+    titleBase = titleBase.replace('TOP 10', HALL_NAME + ' TOP 10');
+  }
+
+  var top3Title = document.querySelector('#top3Board .leaderboard-title');
+  if (top3Title && top3Title.textContent.indexOf(HALL_NAME) < 0){
+    top3Title.textContent = top3Title.textContent.replace('TOP 3', HALL_NAME + ' TOP 3');
+  }
 
   // game.js와 같은 기준으로 테스트 모드를 걸러낸다 (?boss / ?hard). 기록도 남기지 않는다.
   var testMode = false;
@@ -326,9 +342,12 @@
       }
 
       // 등록 가능 등수 밖이다. game.js가 잘못 열어둔 입력창도 여기서 닫는다.
+      // 두 줄로 보이게 한다: "37등이에요!" / "10위 안에 들면 이름을 남길 수 있어요."
+      var NL = String.fromCharCode(10);
+      label.style.whiteSpace = 'pre-line';
       label.textContent = (rank <= RANK_MAX)
-        ? ('아쉽지만 ' + rank + '등이에요! ' + hs + '위 안에 들면 이름을 남길 수 있어요.')
-        : ('아쉽지만 ' + RANK_MAX + '위 밖이에요. ' + hs + '위 안에 들면 이름을 남길 수 있어요.');
+        ? (rank + '등이에요!' + NL + hs + '위 안에 들면 이름을 남길 수 있어요.')
+        : (RANK_MAX + '위 밖이에요!' + NL + hs + '위 안에 들면 이름을 남길 수 있어요.');
       input.hidden = true;
       submit.hidden = true;
       box.hidden = false;

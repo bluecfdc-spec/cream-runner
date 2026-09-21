@@ -5,9 +5,11 @@
    예전 동작(TOP 10만 보기 / TOP 10만 등록)으로 그대로 돌아간다.
 
    1) 전체 순위 보기 버튼      - TOP 10 아래 버튼으로 100위까지 펼친다
-   2) 등수 통지 + 노네임 기록  - 10위 밖이면 이름 없이 점수만 남기고 등수를 알려준다
+   2) 등수 통지 + 노네임 기록  - 등록 가능 등수 밖이면 이름 없이 점수만 남기고 등수를 알려준다
    3) 오판정 보정              - 아래 "왜 보정이 필요한가" 참고
    4) 시작화면 공지 팝업       - Firestore의 visits/notice 문서를 읽어서 띄운다
+   5) 깜짝 이벤트 스위치       - 아래 HALL_EVENT / HALL_UNTIL 참고
+   6) 등수 안내 위치           - 점수 바로 아래(순위표 위)로 옮겨 스크롤 없이 보이게 한다
 
    ---- 왜 보정이 필요한가 -----------------------------------------------------------
    game.js는 Firebase SDK의 get() 으로 순위표를 읽는다. SDK는 서버 연결이 순간적으로
@@ -19,16 +21,44 @@
    이 파일은 등수를 REST로 직접 물어본다. REST는 실패하면 확실히 실패해서 캐시에
    속지 않는다. 그래서 그 숫자를 최종 근거로 삼아,
      - 목록이 비어 있으면 REST로 다시 읽어 채우고
-     - 실제 등수가 10위 밖이면 game.js가 열어둔 입력창을 닫고 등수 안내로 바꾼다.
+     - 실제 등수가 등록 가능 등수 밖이면 game.js가 열어둔 입력창을 닫는다.
    REST 조회까지 실패하면 (정말로 오프라인) 아무것도 건드리지 않는다.
    ----------------------------------------------------------------------------------- */
 
 (function(){
   "use strict";
 
-  var LIMIT = 100;        // "전체 순위 보기"로 펼칠 줄 수
-  var HALL  = 10;         // 이름을 남길 수 있는 등수 (명예의 전당)
-  var CLEAR = '클리어';
+  var LIMIT    = 100;     // "전체 순위 보기"로 펼칠 줄 수
+  var RANK_MAX = 1000;    // 등수를 숫자로 알려주는 한계. 이 밖은 "1,000위 밖"으로만 표시
+  var CLEAR    = '클리어';
+
+  /* ---- 이름 등록이 허용되는 등수 -------------------------------------------------
+     평소에는 HALL_BASE(10등)까지만 이름을 남길 수 있다.
+
+     깜짝 이벤트를 발동할 때 아래 두 값만 채워서 이 파일을 다시 올린다.
+       HALL_EVENT = 100;
+       HALL_UNTIL = '2026-09-23T23:59:59+09:00';
+     그러면 그 시각까지 100등까지 이름 등록이 열리고, 시각이 지나는 순간
+     자동으로 10등으로 돌아간다. HALL_EVENT 가 null 이면 이벤트는 꺼진 상태다.
+
+     마감 판정은 기기 시계가 아니라 Firestore 응답의 서버 시각(readTime)으로 한다.
+     폰 시간을 바꿔서 마감 뒤에 등록하는 것을 막기 위해서다. 서버 시각을 아직
+     못 받았으면 안전한 쪽(10등)으로 둔다.
+     ------------------------------------------------------------------------------- */
+  var HALL_BASE  = 10;
+  var HALL_EVENT = null;
+  var HALL_UNTIL = null;
+
+  var serverNow = null;   // 서버 시각(ms). countAbove 응답에서 채워진다.
+
+  function hallSize(){
+    if (!HALL_EVENT) return HALL_BASE;
+    if (!HALL_UNTIL) return HALL_EVENT;
+    var until = Date.parse(HALL_UNTIL);
+    if (isNaN(until)) return HALL_BASE;
+    if (serverNow === null) return HALL_BASE;
+    return (serverNow < until) ? HALL_EVENT : HALL_BASE;
+  }
 
   var KEY   = 'AIzaSyAKW4uUsBQxaGOujIi4gS95TsvQnamkX_g';
   var BASE  = 'https://firestore.googleapis.com/v1/projects/cream-runner/databases/(default)/documents';
@@ -125,9 +155,14 @@
       if (!r.ok) throw new Error('agg ' + r.status);
       return r.json();
     }).then(function(j){
-      var n = null, i;
+      var n = null, i, t;
       for (i = 0; i < j.length; i++){
-        if (j[i] && j[i].result && j[i].result.aggregateFields && j[i].result.aggregateFields.n){
+        if (!j[i]) continue;
+        if (j[i].readTime){                       // 서버 시각 (마감 판정에 쓴다)
+          t = Date.parse(j[i].readTime);
+          if (!isNaN(t)) serverNow = t;
+        }
+        if (j[i].result && j[i].result.aggregateFields && j[i].result.aggregateFields.n){
           n = parseInt(j[i].result.aggregateFields.n.integerValue, 10);
         }
       }
@@ -145,7 +180,7 @@
       });
   }
 
-  // 10위 밖 판을 이름 없이 남긴다. 다음 사람들의 등수 계산에 쓰인다.
+  // 등록 가능 등수 밖의 판을 이름 없이 남긴다. 다음 사람들의 등수 계산에 쓰인다.
   function recordPlay(score){
     return fetch(PLAYS, {
       method: 'POST',
@@ -261,7 +296,7 @@
 
     // game.js가 캐시에서 빈 목록을 받은 경우를 되살린다.
     if (list.children.length === 0){
-      fetchTop(HALL).then(function(rows){
+      fetchTop(HALL_BASE).then(function(rows){
         if (over.hidden || !rows || !rows.length) return;
         if (list.children.length !== 0) return;
         render(rows);
@@ -272,10 +307,28 @@
     var p = (pending && pendingScore === s) ? pending : askRank(s);
     p.then(function(rank){
       if (over.hidden || rank === null) return;
-      if (rank <= HALL) return;   // 진짜 명예의 전당이면 game.js 판정을 그대로 둔다
+      var hs = hallSize();
 
-      // 10위 밖이다. game.js가 잘못 열어둔 입력창도 여기서 닫는다.
-      label.textContent = '아쉽지만 ' + rank + '등이에요! 10위 안에 들면 이름을 남길 수 있어요.';
+      if (rank <= hs){
+        // 이름을 남길 수 있는 등수다.
+        if (box.hidden){
+          // 이벤트로 열린 구간(11~100등)은 game.js가 열어주지 않으므로 여기서 연다.
+          label.textContent = '🎉 ' + rank + '위! 이름을 남겨보세요.';
+          input.hidden = false;
+          submit.hidden = false;
+          input.value = '';
+          input.disabled = false;
+          submit.disabled = false;
+          submit.textContent = '등록';
+          box.hidden = false;
+        }
+        return;   // 이름으로 scores 에 들어갈 판이라 노네임 기록은 남기지 않는다
+      }
+
+      // 등록 가능 등수 밖이다. game.js가 잘못 열어둔 입력창도 여기서 닫는다.
+      label.textContent = (rank <= RANK_MAX)
+        ? ('아쉽지만 ' + rank + '등이에요! ' + hs + '위 안에 들면 이름을 남길 수 있어요.')
+        : ('아쉽지만 ' + RANK_MAX + '위 밖이에요. ' + hs + '위 안에 들면 이름을 남길 수 있어요.');
       input.hidden = true;
       submit.hidden = true;
       box.hidden = false;
@@ -291,6 +344,12 @@
     expanded = false; savedHtml = null; cached = null;
     paint();
   });
+
+  // 등수/이름 입력 안내를 점수 바로 아래(순위표 위)로 옮긴다.
+  // 원래는 순위표 아래에 있어서 폰에서는 스크롤을 내려야 보였다.
+  if (box.parentNode && board.parentNode === box.parentNode){
+    box.parentNode.insertBefore(box, board);
+  }
 
   paint();
 })();
@@ -346,7 +405,7 @@
   }
   // 공지 내용이 바뀌면 보지 않기가 풀리도록, 내용에서 짧은 지문을 만든다 (djb2).
   function stamp(n){
-    var src = n.title + '\u0000' + n.body, h = 5381, i;
+    var src = n.title + String.fromCharCode(0) + n.body, h = 5381, i;
     for (i = 0; i < src.length; i++){ h = ((h * 33) ^ src.charCodeAt(i)) >>> 0; }
     return h.toString(36) + '|' + dayKey();
   }

@@ -7,6 +7,7 @@
    1) 전체 순위 보기 버튼      - TOP 10 아래 버튼으로 100위까지 펼친다
    2) 등수 통지 + 노네임 기록  - 10위 밖이면 이름 없이 점수만 남기고 등수를 알려준다
    3) 오판정 보정              - 아래 "왜 보정이 필요한가" 참고
+   4) 시작화면 공지 팝업       - Firestore의 visits/notice 문서를 읽어서 띄운다
 
    ---- 왜 보정이 필요한가 -----------------------------------------------------------
    game.js는 Firebase SDK의 get() 으로 순위표를 읽는다. SDK는 서버 연결이 순간적으로
@@ -292,4 +293,109 @@
   });
 
   paint();
+})();
+
+/* ---- 시작화면 공지 팝업 -----------------------------------------------------------
+   페이지를 열어 시작화면이 나타날 때 한 번만 공지를 띄운다. "다시하기"는 game.js가
+   startGame()을 직접 부르고 시작화면을 다시 띄우지 않으므로, 죽고 재시작할 때는
+   자연히 뜨지 않는다 (별도 처리 없음). 한 페이지 로드에 한 번만 뜨도록 잠금도 걸어둔다.
+
+   공지 내용은 Firestore의 visits/notice 문서에서 읽는다. 이 자리를 쓰는 이유는
+   visits 컬렉션이 이미 "읽기 허용"이라 보안 규칙을 건드리지 않아도 되기 때문이다.
+   game.js는 visits/total 과 visits/<날짜> 두 문서만 이름으로 읽으므로 이 문서가
+   끼어들어도 방문자 집계에 영향이 없다.
+
+   문서가 없거나 active 가 true 가 아니거나 body 가 비어 있으면 아무것도 띄우지 않는다.
+   즉 기본 상태는 "공지 없음"이고, 운영자가 콘솔에서 문서를 만들면 그때부터 뜬다.
+
+   문서 형태 (Firebase 콘솔 > Firestore > 데이터 > visits > 문서 ID: notice)
+     active  부울    true            <- false 로 바꾸면 공지가 사라진다
+     title   문자열  "공지"           <- 생략 가능
+     body    문자열  "여러 줄 가능"    <- 줄바꿈이 그대로 반영된다
+     button  문자열  "확인"           <- 생략 가능
+   ----------------------------------------------------------------------------------- */
+
+(function(){
+  "use strict";
+
+  var KEY    = 'AIzaSyAKW4uUsBQxaGOujIi4gS95TsvQnamkX_g';
+  var DOC    = 'https://firestore.googleapis.com/v1/projects/cream-runner/databases/' +
+               '(default)/documents/visits/notice?key=' + KEY;
+  var MAXLEN = 600;   // 너무 긴 공지로 화면이 망가지지 않게 자른다
+
+  var startScreen = document.getElementById('startScreen');
+  var stage = document.getElementById('stage');
+  if (!startScreen || !stage) return;
+  if (!window.MutationObserver) return;
+
+  var shown = false;
+  var notice = null;      // 읽기 완료 후 {title, body, button} 또는 false
+
+  function str(f){ return (f && typeof f.stringValue === 'string') ? f.stringValue : ''; }
+
+  // 페이지 로드 직후 미리 읽어둔다. 실패하거나 문서가 없으면 조용히 포기한다.
+  var loading = fetch(DOC).then(function(r){
+    if (!r.ok) return false;              // 404 = 공지 없음
+    return r.json();
+  }).then(function(j){
+    if (!j || !j.fields) return false;
+    var f = j.fields;
+    if (!f.active || f.active.booleanValue !== true) return false;
+    var body = str(f.body).slice(0, MAXLEN);
+    if (!body) return false;
+    return {
+      title:  str(f.title).slice(0, 40),
+      body:   body,
+      button: str(f.button).slice(0, 12)
+    };
+  }).catch(function(){ return false; });
+
+  function build(n){
+    // 게임의 기존 .overlay / .card / .primary 스타일을 그대로 쓴다 (CSS 추가 없음).
+    var wrap = document.createElement('div');
+    wrap.className = 'overlay';
+    wrap.style.zIndex = '30';
+
+    var card = document.createElement('div');
+    card.className = 'card';
+
+    if (n.title){
+      var h = document.createElement('div');
+      h.textContent = n.title;
+      h.style.cssText = "font-family:'Baloo 2',sans-serif;font-size:19px;font-weight:800;" +
+        'color:#233047;margin:0 0 10px;';
+      card.appendChild(h);
+    }
+
+    var p = document.createElement('div');
+    p.textContent = n.body;
+    p.style.cssText = 'font-size:13.5px;line-height:1.65;color:#233047;text-align:left;' +
+      'white-space:pre-line;margin:0 0 16px;max-height:46vh;overflow-y:auto;';
+    card.appendChild(p);
+
+    var ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'primary';
+    ok.textContent = n.button || '확인';
+    ok.addEventListener('click', function(){
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    });
+    card.appendChild(ok);
+
+    wrap.appendChild(card);
+    return wrap;
+  }
+
+  function maybeShow(){
+    if (shown || startScreen.hidden) return;
+    loading.then(function(n){
+      if (shown || startScreen.hidden || !n) return;
+      shown = true;
+      stage.appendChild(build(n));
+    });
+  }
+
+  // 시작화면이 나타나는 순간에 띄운다 (게임 로딩이 끝난 뒤다).
+  new MutationObserver(maybeShow).observe(startScreen, { attributes: true, attributeFilter: ['hidden'] });
+  maybeShow();   // 혹시 이미 보이는 상태였다면
 })();

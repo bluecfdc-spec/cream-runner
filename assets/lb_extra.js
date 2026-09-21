@@ -313,6 +313,10 @@
      title   문자열  "공지"           <- 생략 가능
      body    문자열  "여러 줄 가능"    <- 줄바꿈이 그대로 반영된다
      button  문자열  "확인"           <- 생략 가능
+
+   "오늘 하루 보지 않기"는 기기의 localStorage에만 기록한다. 공지 내용(title+body)의
+   지문을 함께 저장해서, 운영자가 공지를 바꾸면 보지 않기가 저절로 풀리고 새 공지가
+   다시 뜬다. localStorage를 못 쓰는 환경(시크릿 모드 등)에서는 버튼이 팝업만 닫는다.
    ----------------------------------------------------------------------------------- */
 
 (function(){
@@ -332,6 +336,27 @@
   var notice = null;      // 읽기 완료 후 {title, body, button} 또는 false
 
   function str(f){ return (f && typeof f.stringValue === 'string') ? f.stringValue : ''; }
+
+  var LSKEY = 'creamRunnerNoticeHide';
+
+  function dayKey(){
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) +
+           '-' + ('0' + d.getDate()).slice(-2);
+  }
+  // 공지 내용이 바뀌면 보지 않기가 풀리도록, 내용에서 짧은 지문을 만든다 (djb2).
+  function stamp(n){
+    var src = n.title + '\u0000' + n.body, h = 5381, i;
+    for (i = 0; i < src.length; i++){ h = ((h * 33) ^ src.charCodeAt(i)) >>> 0; }
+    return h.toString(36) + '|' + dayKey();
+  }
+  function hiddenToday(n){
+    try { return window.localStorage.getItem(LSKEY) === stamp(n); }
+    catch (e) { return false; }
+  }
+  function hideForToday(n){
+    try { window.localStorage.setItem(LSKEY, stamp(n)); } catch (e) {}
+  }
 
   // 페이지 로드 직후 미리 읽어둔다. 실패하거나 문서가 없으면 조용히 포기한다.
   var loading = fetch(DOC).then(function(r){
@@ -373,14 +398,29 @@
       'white-space:pre-line;margin:0 0 16px;max-height:46vh;overflow-y:auto;';
     card.appendChild(p);
 
+    function close(){
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    }
+
     var ok = document.createElement('button');
     ok.type = 'button';
     ok.className = 'primary';
     ok.textContent = n.button || '확인';
-    ok.addEventListener('click', function(){
-      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
-    });
+    ok.addEventListener('click', close);
     card.appendChild(ok);
+
+    var skip = document.createElement('button');
+    skip.type = 'button';
+    skip.textContent = '오늘 하루 보지 않기';
+    skip.style.cssText = 'display:block;margin:12px auto 0;padding:4px 8px;border:none;' +
+      "background:none;font-family:'Nunito',-apple-system,'Malgun Gothic',sans-serif;" +
+      'font-size:12px;font-weight:700;color:#5a6a86;text-decoration:underline;' +
+      'cursor:pointer;-webkit-tap-highlight-color:transparent;';
+    skip.addEventListener('click', function(){
+      hideForToday(n);
+      close();
+    });
+    card.appendChild(skip);
 
     wrap.appendChild(card);
     return wrap;
@@ -390,6 +430,7 @@
     if (shown || startScreen.hidden) return;
     loading.then(function(n){
       if (shown || startScreen.hidden || !n) return;
+      if (hiddenToday(n)) return;
       shown = true;
       stage.appendChild(build(n));
     });

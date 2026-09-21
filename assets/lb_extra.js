@@ -4,8 +4,8 @@
    game.js 쪽으로 옮기면 동작은 완전히 같다. index.html에서 이 파일을 지우면 예전
    동작(TOP 10만 보기 / TOP 10만 등록 가능)으로 그대로 돌아간다.
 
-   1) 전체 순위 보기 버튼  - TOP 10 아래 버튼으로 100위까지 펼친다
-   2) 100위 등록 허용      - 10위 밖이어도 100위 안이면 이름 입력창을 열어준다
+   1) 전체 순위 보기 버튼 - TOP 10 아래 버튼으로 100위까지 펼친다
+   2) 등수 통지 + 노네임 기록 - 10위 밖이면 이름 없이 점수만 남기고 등수를 알려준다
    ----------------------------------------------------------------------------------- */
 
 (function(){
@@ -124,10 +124,28 @@
 
 (function(){
   "use strict";
-  var TOP_N = 100;
-  var AGG_URL = 'https://firestore.googleapis.com/v1/projects/cream-runner/databases/' +
-                '(default)/documents:runAggregationQuery?key=' +
-                'AIzaSyAKW4uUsBQxaGOujIi4gS95TsvQnamkX_g';
+  /* 10위 밖으로 끝난 판을 다룬다. 이름 입력은 game.js의 TOP 10 판정에 그대로 맡기고,
+     여기서는 두 가지만 한다.
+       - 등수를 알려준다 ("아쉽지만 214등이에요!")
+       - 그 판의 점수를 이름 없이 plays 컬렉션에 남긴다
+
+     등수는 저장된 기록 중에서만 계산되므로, 10위 밖 기록을 쌓아두지 않으면 애초에
+     "214등"이라는 숫자가 나올 수 없다. 그래서 노네임 기록이 필요하다.
+
+     한 판은 scores(이름 있음)와 plays(이름 없음) 중 정확히 한 곳에만 들어간다.
+     10위 안이면 game.js가 scores에 넣고, 10위 밖이면 여기서 plays에 넣는다.
+     그래서 같은 판이 두 번 세어지지 않고 기존 기록을 옮길 필요도 없다.
+
+     등수 = (scores 중 내 점수보다 높은 수) + (plays 중 높은 수) + 1
+     집계 쿼리는 색인 1,000개당 읽기 1건이라 100건을 읽는 대신 2건이면 된다.
+
+     plays 규칙이 아직 없으면 그쪽 집계와 쓰기가 조용히 실패하고 scores만으로
+     계산한다. 즉 규칙을 게시하기 전에도 화면이 깨지지 않는다. */
+
+  var KEY   = 'AIzaSyAKW4uUsBQxaGOujIi4gS95TsvQnamkX_g';
+  var BASE  = 'https://firestore.googleapis.com/v1/projects/cream-runner/databases/(default)/documents';
+  var AGG   = BASE + ':runAggregationQuery?key=' + KEY;
+  var PLAYS = BASE + '/plays?key=' + KEY;
 
   var over    = document.getElementById('gameOverScreen');
   var scoreEl = document.getElementById('finalScore');
@@ -138,6 +156,7 @@
   if (!over || !scoreEl || !box || !label || !input || !submit) return;
   if (!window.MutationObserver) return;
 
+  // game.js와 같은 기준으로 테스트 모드를 걸러낸다 (?boss / ?hard). 기록도 남기지 않는다.
   var testMode = false;
   try {
     var qs = new URLSearchParams(window.location.search);
@@ -145,18 +164,21 @@
   } catch (e) {}
   if (testMode) return;
 
-  var pending = null, pendingScore = null;
-
+  function today(){
+    var d = new Date();
+    return d.getFullYear() + '.' + ('0' + (d.getMonth() + 1)).slice(-2) +
+           '.' + ('0' + d.getDate()).slice(-2);
+  }
   function currentScore(){
     var n = parseInt(String(scoreEl.textContent).replace(/[^0-9]/g, ''), 10);
     return isNaN(n) ? null : n;
   }
 
-  // 내 점수보다 높은 기록이 몇 개인지 센다. 등수 = 그 수 + 1.
-  function askRank(score){
+  // 한 컬렉션에서 내 점수보다 높은 기록이 몇 개인지 센다. 실패하면 null.
+  function countAbove(coll, score){
     var body = { structuredAggregationQuery: {
       structuredQuery: {
-        from: [{ collectionId: 'scores' }],
+        from: [{ collectionId: coll }],
         where: { fieldFilter: {
           field: { fieldPath: 'score' },
           op: 'GREATER_THAN',
@@ -165,7 +187,7 @@
       },
       aggregations: [{ alias: 'n', count: {} }]
     } };
-    return fetch(AGG_URL, {
+    return fetch(AGG, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -179,11 +201,33 @@
           n = parseInt(j[i].result.aggregateFields.n.integerValue, 10);
         }
       }
-      return (n === null || isNaN(n)) ? null : n + 1;
+      return (n === null || isNaN(n)) ? null : n;
     }).catch(function(){ return null; });
   }
 
-  // 점수가 확정되는 순간 미리 조회를 걸어둔다 (화면은 그 뒤에 나타난다).
+  function askRank(score){
+    return Promise.all([countAbove('scores', score), countAbove('plays', score)])
+      .then(function(r){
+        if (r[0] === null) return null;                 // 이름 있는 기록조차 못 셌으면 포기
+        return r[0] + (r[1] === null ? 0 : r[1]) + 1;   // plays 규칙 전에는 scores 만으로
+      });
+  }
+
+  // 이름 없이 점수만 남긴다. 다음 사람들의 등수 계산에 쓰인다.
+  function recordPlay(score){
+    return fetch(PLAYS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: {
+        score: { integerValue: String(score) },
+        date:  { stringValue: today() }
+      } })
+    }).catch(function(){});
+  }
+
+  var pending = null, pendingScore = null, recordedThisRound = false;
+
+  // 점수가 확정되는 순간 미리 등수를 물어둔다 (점수 화면은 그 뒤에 나타난다).
   new MutationObserver(function(){
     var s = currentScore();
     if (s === null || s === pendingScore) return;
@@ -192,29 +236,22 @@
   }).observe(scoreEl, { childList: true, characterData: true, subtree: true });
 
   new MutationObserver(function(){
-    if (over.hidden) return;
-    if (!box.hidden) return;   // game.js가 이미 TOP 10으로 열어준 판
+    if (over.hidden){ recordedThisRound = false; return; }
+    if (!box.hidden) return;        // TOP 10 - game.js가 이름 입력창을 열었다
     var s = currentScore();
     if (s === null) return;
+
+    if (!recordedThisRound){
+      recordedThisRound = true;
+      recordPlay(s);
+    }
+
     var p = (pending && pendingScore === s) ? pending : askRank(s);
     p.then(function(rank){
-      if (over.hidden || !box.hidden) return;
-      if (rank === null) return;
-      if (rank <= TOP_N){
-        label.textContent = '🎉 ' + rank + '위! 이름을 남겨보세요.';
-        input.hidden = false;
-        submit.hidden = false;
-        input.value = '';
-        input.disabled = false;
-        submit.disabled = false;
-        submit.textContent = '등록';
-      } else {
-        label.textContent = '아쉬워요! ' + TOP_N +
-          '위 안에 들면 이름을 남길 수 있어요. (지금 ' +
-          rank + '위)';
-        input.hidden = true;
-        submit.hidden = true;
-      }
+      if (over.hidden || !box.hidden || rank === null) return;
+      label.textContent = '아쉽지만 ' + rank + '등이에요! 10위 안에 들면 이름을 남길 수 있어요.';
+      input.hidden = true;
+      submit.hidden = true;
       box.hidden = false;
     });
   }).observe(over, { attributes: true, attributeFilter: ['hidden'] });

@@ -4,7 +4,7 @@
    game.js 쪽으로 옮기면 동작은 같다. index.html에서 이 파일 참조 한 줄을 지우면
    예전 동작(TOP 10만 보기 / TOP 10만 등록)으로 그대로 돌아간다.
 
-   1) 전체 순위 보기 버튼      - TOP 10 아래 버튼으로 100위까지 펼친다
+   1) 전체 순위 보기 버튼      - 기본은 꺼짐. 이벤트 때만 켜서 150위까지 펼친다
    2) 등수 통지 + 노네임 기록  - 등록 가능 등수 밖이면 이름 없이 점수만 남기고 등수를 알려준다
    3) 오판정 보정              - 아래 "왜 보정이 필요한가" 참고
    4) 시작화면 공지 팝업       - Firestore의 visits/notice 문서를 읽어서 띄운다
@@ -29,18 +29,25 @@
 (function(){
   "use strict";
 
-  var LIMIT    = 100;     // "전체 순위 보기"로 펼칠 줄 수
+  /* "전체 순위 보기" 버튼. 평소에는 10등까지만 이름을 남길 수 있어서 그 아래를
+     펼쳐 봐도 의미가 없으므로 꺼둔다. 이벤트로 11등 이하 등록이 열릴 때 true 로
+     바꾸면 같이 살아난다. */
+  var SHOW_ALL_BTN = false;
+
+  var LIMIT    = 150;     // 버튼을 켰을 때 펼칠 줄 수
   var RANK_MAX = 1000;    // 등수를 숫자로 알려주는 한계. 이 밖은 "1,000위 밖"으로만 표시
   var CLEAR    = '클리어';
 
   /* ---- 이름 등록이 허용되는 등수 -------------------------------------------------
      평소에는 HALL_BASE(10등)까지만 이름을 남길 수 있다.
 
-     깜짝 이벤트를 발동할 때 아래 두 값만 채워서 이 파일을 다시 올린다.
-       HALL_EVENT = 100;
+     깜짝 이벤트를 발동할 때 아래 값들만 채워서 이 파일을 다시 올린다.
+       SHOW_ALL_BTN = true;
+       HALL_EVENT = 150;
        HALL_UNTIL = '2026-09-24T00:00:00+09:00';
-     그러면 그 시각까지 100등까지 이름 등록이 열리고, 시각이 지나는 순간
-     자동으로 10등으로 돌아간다. HALL_EVENT 가 null 이면 이벤트는 꺼진 상태다.
+     그러면 그 시각까지 150등까지 이름 등록이 열리고(그리고 전체 순위 보기 버튼이
+     살아나고), 시각이 지나는 순간 자동으로 10등으로 돌아간다. HALL_EVENT 가
+     null 이면 이벤트는 꺼진 상태다.
 
      마감 판정은 기기 시계가 아니라 Firestore 응답의 서버 시각(readTime)으로 한다.
      폰 시간을 바꿔서 마감 뒤에 등록하는 것을 막기 위해서다. 서버 시각을 아직
@@ -244,20 +251,14 @@
     });
   }
 
-  // ---- 1) 전체 순위 보기 버튼 ------------------------------------------------------
+  // ---- 1) 전체 순위 보기 버튼 (SHOW_ALL_BTN 이 true 일 때만) ------------------------
 
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.style.cssText = 'display:block;width:100%;margin:6px 0 2px;padding:7px 10px;' +
-    "font-family:'Baloo 2',sans-serif;font-size:12.5px;font-weight:700;color:#3d6fa8;" +
-    'background:#f6f9fd;border:2px solid #f0dfb8;border-radius:10px;cursor:pointer;' +
-    '-webkit-tap-highlight-color:transparent;';
-  board.appendChild(btn);
-
+  var btn = null;
   var expanded = false, savedHtml = null, cached = null;
 
   function paint(){
     if (title) title.textContent = expanded ? titleBase.replace('TOP 10', 'TOP ' + LIMIT) : titleBase;
+    if (!btn) return;
     btn.disabled = false;
     btn.textContent = expanded ? 'TOP 10만 보기' : '전체 순위 보기';
   }
@@ -268,21 +269,31 @@
     render(rows);
     paint();
   }
-  btn.addEventListener('click', function(){
-    if (expanded){
-      expanded = false;
-      if (savedHtml !== null) list.innerHTML = savedHtml;
-      paint();
-      return;
-    }
-    if (cached){ expand(cached); return; }
-    btn.disabled = true;
-    btn.textContent = '불러오는 중...';
-    fetchTop(LIMIT).then(function(rows){
-      if (!rows || !rows.length){ paint(); return; }
-      expand(rows);
+
+  if (SHOW_ALL_BTN){
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.cssText = 'display:block;width:100%;margin:6px 0 2px;padding:7px 10px;' +
+      "font-family:'Baloo 2',sans-serif;font-size:12.5px;font-weight:700;color:#3d6fa8;" +
+      'background:#f6f9fd;border:2px solid #f0dfb8;border-radius:10px;cursor:pointer;' +
+      '-webkit-tap-highlight-color:transparent;';
+    board.appendChild(btn);
+    btn.addEventListener('click', function(){
+      if (expanded){
+        expanded = false;
+        if (savedHtml !== null) list.innerHTML = savedHtml;
+        paint();
+        return;
+      }
+      if (cached){ expand(cached); return; }
+      btn.disabled = true;
+      btn.textContent = '불러오는 중...';
+      fetchTop(LIMIT).then(function(rows){
+        if (!rows || !rows.length){ paint(); return; }
+        expand(rows);
+      });
     });
-  });
+  }
 
   // ---- 2) 등수 통지 + 노네임 기록 + 오판정 보정 ------------------------------------
 
@@ -328,7 +339,7 @@
       if (rank <= hs){
         // 이름을 남길 수 있는 등수다.
         if (box.hidden){
-          // 이벤트로 열린 구간(11~100등)은 game.js가 열어주지 않으므로 여기서 연다.
+          // 이벤트로 열린 구간(11등 이하)은 game.js가 열어주지 않으므로 여기서 연다.
           label.textContent = '🎉 ' + rank + '위! 이름을 남겨보세요.';
           input.hidden = false;
           submit.hidden = false;

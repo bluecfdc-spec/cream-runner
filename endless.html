@@ -18,6 +18,13 @@
   :root{
     /* 픽셀 구름은 이 변수 하나로 색이 정해진다. 밤에는 달빛 받은 흐린 회청색. */
     --cloud-color:#9fb1d4;
+    /* 아래쪽 띠(#bottomSpace)의 은은한 원형 그라데이션 색. 낮에는 크림/민트였다. */
+    --psy-a:#3b3468;
+    --psy-b:#1e2b4d;
+    /* 플레이 영역의 밑바탕. sky.jpg가 덮으므로 보통은 안 보이지만,
+       이미지가 늦게 뜨거나 실패했을 때 낮하늘이 번쩍이지 않도록 밤색으로 둔다. */
+    --sky-top:#16224a;
+    --sky-bottom:#2b3a6b;
   }
 
   /* 상단 하늘: 짙은 남색 -> 지평선 쪽은 살짝 보랏빛 */
@@ -41,6 +48,15 @@
   /* 달무리 — 해 모양은 그대로 두고 은은한 빛번짐만 얹는다 */
   .sun{
     box-shadow:0 0 18px 6px rgba(255,226,160,.28);
+  }
+
+  /* 잔디도 달빛 받은 어두운 초록으로. 장애물은 별도 그림이라 잘 보이는 데 영향 없다.
+     밝은 낮 잔디로 되돌리려면 이 블록만 지우면 된다. */
+  #ground{
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.26) 0 26px, transparent 26px 64px) bottom 40px / 300px 4px repeat-x,
+      linear-gradient(#416d4b, #31543a 55%, #24422c);
+    border-top:4px solid #1e3625;
   }
 
   /* ---- 별 ----
@@ -277,6 +293,9 @@
 
 <!-- BGM 음소거 버튼 (음악만 끄고 효과음은 유지) -->
 <script src="assets/mute_btn.js?v=1"></script>
+
+<!-- 밤하늘 별똥별 연출 (게임 로직과 무관, 터치도 그대로 통과) -->
+<script src="assets/night_fx.js?v=1"></script>
 
 <!-- 게임 본체. game.js 원본을 받아와 무한질주 규칙만 바꿔 실행한다.
      game.js 파일 자체는 절대 수정하지 않는다. 자세한 내용은 그 파일의 주석 참고.

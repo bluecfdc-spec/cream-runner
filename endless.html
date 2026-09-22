@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>크림이 러너 · 무한질주</title>
+<link rel="stylesheet" href="style.css?v=12">
+<style>
+  /* ====================================================================
+     무한질주 모드 — 밤 화면
+     --------------------------------------------------------------------
+     본 게임과 같은 style.css를 쓰고, 색만 여기서 덮어쓴다. style.css는
+     한 글자도 건드리지 않으므로 본 게임에는 아무 영향이 없다.
+
+     해는 그대로 둔다. 밤하늘에 올라가면 그대로 추석 보름달로 읽힌다.
+     ==================================================================== */
+
+  :root{
+    /* 픽셀 구름은 이 변수 하나로 색이 정해진다. 밤에는 달빛 받은 흐린 회청색. */
+    --cloud-color:#9fb1d4;
+  }
+
+  /* 상단 하늘: 짙은 남색 -> 지평선 쪽은 살짝 보랏빛 */
+  #topSpace{
+    background:linear-gradient(180deg,#0a1230 0%,#152244 55%,#2a2f56 100%);
+  }
+
+  /* 플레이 영역의 스크롤 배경을 밤으로 물들인다.
+     filter를 쓰면 배경이 매 프레임 스크롤될 때마다 다시 그려져 폰에서 버벅일 수
+     있어서, 칠할 때 한 번만 계산되는 blend-mode로 처리한다. */
+  #sky{
+    background-color:#41538f;
+    background-blend-mode:multiply;
+  }
+
+  /* 구름은 밤에 살짝 흐릿하게 */
+  .cloud-wrap.c1 .pixel-cloud{ opacity:.55; }
+  .cloud-wrap.c2 .pixel-cloud{ opacity:.42; }
+  .cloud-wrap.c3 .pixel-cloud{ opacity:.34; }
+
+  /* 달무리 — 해 모양은 그대로 두고 은은한 빛번짐만 얹는다 */
+  .sun{
+    box-shadow:0 0 18px 6px rgba(255,226,160,.28);
+  }
+
+  /* ---- 별 ----
+     반짝임 주기를 조금씩 다르게 줘서 기계적으로 안 보이게 한다. */
+  .star{
+    position:absolute;
+    width:2px;
+    height:2px;
+    border-radius:50%;
+    background:#fff;
+    opacity:.85;
+    animation:starTwinkle 3.2s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .star.big{ width:3px; height:3px; box-shadow:0 0 4px 1px rgba(255,255,255,.55); }
+  .star.dim{ opacity:.45; }
+  @keyframes starTwinkle{
+    0%,100%{ opacity:.25; }
+    50%    { opacity:.95; }
+  }
+
+  /* 순위표에서 클리어 배지는 무한질주에 쓰이지 않지만, 본 게임과 스타일을 맞춰둔다. */
+  .leaderboard-list .lb-name:has(.lb-clear){
+    color:#1d63c8;
+    font-weight:800;
+  }
+
+  /* 카드가 화면보다 길어지면 위아래가 잘려 등록 버튼에 손이 안 닿는다.
+     가운데 정렬을 카드의 margin:auto로 옮기면 공간이 남을 때는 가운데,
+     모자랄 때는 스크롤된다. (본 게임과 동일) */
+  .overlay{
+    overflow-y:auto;
+    align-items:flex-start;
+  }
+  .overlay > .card{
+    margin:auto;
+  }
+
+  /* 무한질주 표식 */
+  .endless-tag{
+    display:inline-block;
+    margin:0 0 4px;
+    padding:3px 10px;
+    border-radius:999px;
+    background:linear-gradient(135deg,#243a72,#3b2a63);
+    color:#ffe9b0;
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.04em;
+  }
+  .back-link{
+    display:block;
+    margin-top:6px;
+    color:#6b7c9c;
+    font-size:11px;
+    text-decoration:underline;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="topSpace" class="stage-space">
+    <div class="sun"></div>
+
+    <i class="star big" style="top:9%;left:7%"></i>
+    <i class="star" style="top:22%;left:14%"></i>
+    <i class="star dim" style="top:38%;left:5%"></i>
+    <i class="star" style="top:13%;left:23%"></i>
+    <i class="star big" style="top:31%;left:30%"></i>
+    <i class="star dim" style="top:48%;left:20%"></i>
+    <i class="star" style="top:7%;left:38%"></i>
+    <i class="star" style="top:26%;left:44%"></i>
+    <i class="star dim" style="top:41%;left:36%"></i>
+    <i class="star big" style="top:16%;left:52%"></i>
+    <i class="star" style="top:34%;left:58%"></i>
+    <i class="star dim" style="top:11%;left:63%"></i>
+    <i class="star" style="top:45%;left:49%"></i>
+    <i class="star big" style="top:29%;left:71%"></i>
+    <i class="star dim" style="top:52%;left:65%"></i>
+    <i class="star" style="top:8%;left:80%"></i>
+    <i class="star dim" style="top:40%;left:84%"></i>
+    <i class="star" style="top:19%;left:92%"></i>
+    <i class="star big" style="top:50%;left:88%"></i>
+    <i class="star dim" style="top:57%;left:76%"></i>
+
+    <div class="cloud-wrap c1"><div class="pixel-cloud"></div></div>
+    <div class="cloud-wrap c2"><div class="pixel-cloud"></div></div>
+    <div class="cloud-wrap c3"><div class="pixel-cloud"></div></div>
+    <div class="sparkle s1"></div>
+    <div class="sparkle s2"></div>
+    <div class="sparkle s3"></div>
+    <div id="banner"><img id="bannerImg" alt="크림이네 산책하기"></div>
+    <div id="hud">
+      <div id="scoreBox">점수 <span id="scoreVal">0</span></div>
+    </div>
+    <div id="bgmHud">
+      <img id="bgmCdImg" alt="">
+      <div id="bgmTitleWrap">
+        <div id="bgmTitleTrack">
+          <span class="bgmTitleCopy">-</span>
+          <span class="bgmTitleCopy">-</span>
+        </div>
+      </div>
+    </div>
+    <div id="invincibleHud" hidden>🛡 <span id="invincibleTime">5</span></div>
+  </div>
+  <div id="app">
+  <div id="sky" style="background-image:url('assets/sky.jpg');"></div>
+  <div id="ground"></div>
+  <div id="obstacles"></div>
+  <div id="character" class="run">
+    <img id="charImg" alt="크림이네 세 가족 캐릭터">
+    <div id="charCountdown" hidden><span id="charCountdownNum">5</span></div>
+  </div>
+  <div id="effectsLayer"></div>
+  <div id="crowWarning" hidden><div class="warn-tri"><span class="warn-mark">!</span></div></div>
+  <div id="hitFlash"></div>
+  </div>
+
+  <div id="bottomSpace" class="stage-space">
+    <div id="gaugeBarWrap">
+      <img id="gaugeIcon" alt="개모차">
+      <div id="gaugeTrack"><div id="gaugeFill"></div><img id="gaugeRider" alt=""></div>
+    </div>
+    <!-- 보스 진행바(#bossProgWrap)는 무한질주에 왕이 등장하지 않으므로 통째로 뺐다.
+         game.js는 이 요소들이 없을 때를 모두 대비해 두었으므로(전부 null 검사가 걸려
+         있다) 빼도 아무 문제가 없다. 나중에 이 자리에 흑견 게이지가 들어갈 예정이다. -->
+    <button id="jumpBtn" type="button" aria-label="점프">점프</button>
+  </div>
+
+  <div id="loadingOverlay" class="overlay loading-overlay" hidden>
+    <div class="loading-spinner" role="status" aria-label="불러오는 중"></div>
+  </div>
+
+  <div id="startScreen" class="overlay" hidden>
+    <div class="card">
+      <div class="start-banner-wrap">
+        <img id="startBannerImg" class="start-banner-pic" alt="크림이네 산책하기">
+        <div class="banner-badges">
+          <div class="visit-badge" id="visitBadge" hidden>
+            <span id="visitToday">오늘 -</span><span class="dot">·</span><span id="visitTotal">누적 -</span>
+          </div>
+          <div class="made-by">made by Hong Son</div>
+          <div class="made-by" style="background:rgba(20,30,50,.34);color:rgba(255,255,255,.76);font-size:8px;letter-spacing:.03em;padding:3px 7px;">BGM: Claude AI</div>
+        </div>
+      </div>
+      <div class="endless-tag">🌙 무한질주 모드</div>
+      <button class="primary" id="startBtn" type="button">시작하기</button>
+      <div class="leaderboard" id="top3Board">
+        <div class="leaderboard-title">🏆 TOP 3</div>
+        <ol class="leaderboard-list" id="top3List"></ol>
+        <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
+      </div>
+      <p class="hint">끝이 없습니다. 왕도 없습니다. 얼마나 버티나 겨뤄보세요.</p>
+      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.
+        <a class="back-link" href="./">← 크림이 산책(본 게임)으로 돌아가기</a>
+      </p>
+    </div>
+  </div>
+
+  <div id="gameOverScreen" class="overlay" hidden>
+    <div class="card">
+      <img id="gameoverPic" class="gameover-pic" alt="당황한 크림이네 가족">
+      <h2 id="gameOverTitle">크림아! 발 닦자!</h2>
+      <div class="scoreline single">
+        <div><span class="label">이번 점수</span><span class="value" id="finalScore">0</span></div>
+      </div>
+
+      <div class="leaderboard" id="top10Board">
+        <div class="leaderboard-title">🏆 TOP 10</div>
+        <ol class="leaderboard-list" id="top10List"></ol>
+        <div class="leaderboard-empty" id="top10Status">불러오는 중...</div>
+      </div>
+      <div class="new-record-box" id="newRecordBox" hidden>
+        <p class="new-record-label" id="newRecordLabel">🎉 TOP 10 진입! 이름을 남겨보세요.</p>
+        <div class="name-input-row">
+          <input type="text" id="nameInput" maxlength="8" placeholder="이름 입력">
+          <button class="primary small" id="submitNameBtn" type="button">등록</button>
+        </div>
+      </div>
+
+      <button class="primary" id="retryBtn" type="button">다시하기</button>
+      <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
+      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
+    </div>
+  </div>
+</div>
+
+<audio id="bgm-a" preload="auto"></audio>
+<audio id="bgm-b" preload="auto"></audio>
+
+<!-- Firebase (Firestore) - 로그인 없는 순위표 -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="assets/bgm_manifest.js?v=12"></script>
+<script src="assets/char_run_1.js"></script>
+<script src="assets/char_run_2_p1.js"></script>
+<script src="assets/char_run_2_p2.js"></script>
+<script src="assets/char_run_2_p3.js"></script>
+<script src="assets/char_run_2_p4.js"></script>
+<script src="assets/char_run_2_p5.js"></script>
+<script src="assets/char_run_2_p6.js"></script>
+<script src="assets/char_run_2_p7.js"></script>
+<script src="assets/char_run_2_p8.js"></script>
+<script src="assets/char_run_2.js"></script>
+<script src="assets/char_jump_1.js"></script>
+<script src="assets/char_jump_2.js"></script>
+<script src="assets/char_jump_3.js"></script>
+<script src="assets/item_woman.js"></script>
+<script src="assets/item_man.js"></script>
+<script src="assets/call_appa_p1.js"></script>
+<script src="assets/call_appa_p2.js"></script>
+<script src="assets/call_appa_p3.js"></script>
+<script src="assets/call_appa_p4.js"></script>
+<script src="assets/call_mom.js"></script>
+<script src="assets/milestone_1000_p1.js"></script>
+<script src="assets/milestone_1000_p2.js"></script>
+<script src="assets/milestone_1000_p3.js"></script>
+<script src="assets/milestone_5000_p1.js"></script>
+<script src="assets/milestone_5000_p2.js"></script>
+<script src="assets/milestone_5000_p3.js"></script>
+<script src="assets/milestone_5000_p4.js"></script>
+<script src="assets/milestone_5000_p5.js"></script>
+<script src="assets/milestone_10000_p1.js"></script>
+<script src="assets/milestone_10000_p2.js"></script>
+<script src="assets/milestone_10000_p3.js"></script>
+<script src="assets/milestone_10000_p4.js"></script>
+<script src="assets/bgm_cd.js"></script>
+
+<!-- 본 게임의 미세조정 값 (먼저 로드) -->
+<script src="assets/tune.js?v=12"></script>
+<!-- 무한질주 전용 값. tune.js 뒤에 와야 덮어쓴다. 난이도 조절은 이 파일에서 한다. -->
+<script src="assets/endless_tune.js?v=1"></script>
+
+<!-- BGM 음소거 버튼 (음악만 끄고 효과음은 유지) -->
+<script src="assets/mute_btn.js?v=1"></script>
+
+<!-- 게임 본체. game.js 원본을 받아와 무한질주 규칙만 바꿔 실행한다.
+     game.js 파일 자체는 절대 수정하지 않는다. 자세한 내용은 그 파일의 주석 참고.
+     순위표(lb_endless.js)는 이 파일이 game.js 실행을 마친 뒤 직접 불러온다. -->
+<script src="assets/endless_boot.js?v=1"></script>
+</body>
+</html>

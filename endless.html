@@ -451,6 +451,10 @@
 <!-- 무한질주 전용 값. tune.js 뒤에 와야 덮어쓴다. 난이도 조절은 이 파일에서 한다. -->
 <script src="assets/endless_tune.js?v=1"></script>
 
+<!-- 현재 시즌 게시판. 반드시 아래 sig 스크립트보다 먼저 와야 한다 (그 파일 주석 참고).
+     시즌을 넘길 때는 assets/season_now.js 의 한 줄만 고친다. -->
+<script src="assets/season_now.js?v=1"></script>
+
 <!-- BGM 음소거 버튼 (음악만 끄고 효과음은 유지) -->
 <script src="assets/mute_btn.js?v=1"></script>
 
@@ -472,7 +476,9 @@
    별도 파일이 아니라 여기에 직접 박아둔 이유: 파일로 두면 그 파일 하나를 못 받는
    사용자가 생길 수 있고, 그러면 게임은 정상인데 점수 등록만 조용히 실패한다.
    아래 endless_boot.js 가 game.js를 실행하기 전에 설치되어야 하므로 그보다 먼저 둔다.
-   ★ 규칙(Firestore rules)에 똑같은 공식이 들어있다. 한쪽만 바꾸면 등록이 전부 막힌다. */
+   ★ 규칙(Firestore rules)에 똑같은 공식이 들어있다. 한쪽만 바꾸면 등록이 전부 막힌다.
+   ★ 위의 season_now.js 보다 뒤에 와야 한다. 그래야 여기서 원래 이름('endless')을 보고
+      검증값을 붙이고, 그 다음에 season_now 가 실제 이름('endless_s2')으로 바꿔 보낸다. */
 (function(){"use strict";
   function sigOf(s){ return (Math.floor(s) * 7919) % 100000; }
   function guarded(p){ return p === 'scores' || p === 'endless'; }

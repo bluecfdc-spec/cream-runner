@@ -71,7 +71,12 @@
     // 아래 패치가 찾는 문장은 바로 위 패치가 만들어낸 것이다. 순서를 바꾸면 안 된다.
     { n: "악마 패턴 매 프레임 갱신",
       f: "      dogUpdate(dt);",
-      r: "      dogUpdate(dt);\n      demonUpdate(dt);" }
+      r: "      dogUpdate(dt);\n      demonUpdate(dt);" },
+    // 테스트 주소(?demontest=1)에서만 흑견을 계속 소환한다. 플래그가 없으면 아무 일도
+    // 하지 않으므로 평소 플레이에는 영향이 없다. 아래 문장은 위 패치가 만들어낸 것이다.
+    { n: "테스트용 흑견 강제 소환",
+      f: "      demonUpdate(dt);",
+      r: "      if (window.ENDLESS_TEST_DOG && !dogActive && !invincible) dogGauge = dogMax();\n      demonUpdate(dt);" }
   ];
 
   function fail(why){

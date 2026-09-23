@@ -19,6 +19,7 @@
 //     11) 흑견 본체(assets/dog_module.js)와 악마 패턴(assets/demon_module.js)을
 //         game.js 안쪽에 통째로 심는다
 //     12) 가족 복귀(라이프) 보너스를 내지 않는다
+//     13) 스크롤 속도 상한을 배수로 열어준다 (중력 상한은 game.js가 window로 읽는다)
 //
 //  [안전장치]
 //  바꿔치기할 문장을 game.js에서 정확히 한 군데도 못 찾거나 두 군데 이상 찾으면,
@@ -85,7 +86,14 @@
     // (이 패치는 endless.html 에서만 적용된다).
     { n: "라이프 보너스 차단",
       f: "      if (!finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){",
-      r: "      if (!window.ENDLESS_NO_LIFE_BONUS && !finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){" }
+      r: "      if (!window.ENDLESS_NO_LIFE_BONUS && !finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){" },
+    // 스크롤 속도 상한을 배수로 열어준다. 본 게임과 무한질주는 원래 같은 상한
+    // (화면폭 x 0.945)에 걸리는데, 무한질주만 더 빠르게 하려면 이 값이 필요하다.
+    // 상한만 올리면 "시간 간격"은 그대로라 난이도가 안 오르므로, 중력 상한
+    // (GRAVITY_CAP_MULT, game.js 가 이미 window 로 읽는다)도 같이 올려야 한다.
+    { n: "속도 상한 배수",
+      f: "    MAX_SPEED = Math.max(360, appW * 0.9 * 1.05);",
+      r: "    MAX_SPEED = Math.max(360, appW * 0.9 * 1.05) * (window.ENDLESS_SPEED_CAP_MULT || 1);" }
   ];
 
   function fail(why){

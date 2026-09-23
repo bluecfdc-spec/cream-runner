@@ -402,6 +402,11 @@
 <!-- 밤하늘 별똥별 연출 (게임 로직과 무관, 터치도 그대로 통과) -->
 <script src="assets/night_fx.js?v=1"></script>
 
+<!-- 점수 위조 방지(sig). 아래 endless_boot.js 가 game.js를 실행하기 전에 설치되어야
+     하므로 반드시 그보다 먼저 로드한다. 무한질주 기록(endless 컬렉션)에도 본 게임과
+     똑같은 방식으로 검증값을 붙인다. -->
+<script src="assets/score_sig.js?v=1"></script>
+
 <!-- 게임 본체. game.js 원본을 받아와 무한질주 규칙만 바꿔 실행한다.
      game.js 파일 자체는 절대 수정하지 않는다. 자세한 내용은 그 파일의 주석 참고.
      순위표(lb_endless.js)는 이 파일이 game.js 실행을 마친 뒤 직접 불러온다. -->

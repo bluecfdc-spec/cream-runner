@@ -1,0 +1,155 @@
+// ============================================================================
+//  본 게임(일반 모드) 부트 로더
+// ============================================================================
+//  index.html 에서 game.js 대신 이 파일을 읽는다. 하는 일은 하나다.
+//  game.js 를 "글자"로 받아서 정해진 자리 몇 군데만 바꿔치기한 뒤 실행한다.
+//  game.js 파일 자체는 단 한 글자도 수정되지 않는다. 읽기만 한다.
+//
+//  [왜 이렇게 하나]
+//  game.js 는 11만 자가 넘어서 직접 고치다가 한 글자만 어긋나도 게임이 안 돌아간다.
+//  무한질주(assets/endless_boot.js)는 이미 이 방식으로 돌아가고 있고, 같은 방식을
+//  쓰면 두 모드의 규칙 변경이 정확히 같은 자리에 같은 모양으로 들어간다.
+//
+//  [바꾸는 것]  - 값은 assets/tune.js 에서 정한다
+//    1) 쥐 판정 박스를 줄인다
+//    2) 까마귀 판정 박스를 줄인다
+//    3) 까마귀 그림과 판정의 어긋남을 없앤다
+//    4) 효과음(AudioContext)을 밖에서 깨울 수 있게 내보낸다
+//  무한질주 쪽 1~3번(14~16)과 완전히 같은 문장이다. 그래서 두 모드의 판정이 같다.
+//
+//  ★ [안전장치 - 무한질주와 다른 점] ★
+//  여기는 본 게임이다. 그래서 "무슨 일이 있어도 게임은 돌아간다"가 1순위다.
+//  무한질주는 패치가 곧 게임 규칙이라 하나만 실패해도 멈춰 세우지만, 여기서 바꾸는
+//  건 판정을 조금 후하게 해주는 것뿐이다. 못 바꿔도 예전 게임 그대로 돌아가면 된다.
+//    - 바꿀 자리를 못 찾으면: 그 패치만 건너뛰고 나머지를 적용한다 (콘솔에 경고).
+//    - 바꾼 결과가 문법에 안 맞으면: 패치를 전부 버리고 받아온 원본을 실행한다.
+//    - game.js 를 못 받아오면: 예전처럼 <script src="game.js"> 를 그냥 붙인다.
+//  즉 최악의 경우가 "2026-09-24 이전과 똑같은 게임"이다. 게임이 안 뜨는 경우는 없다.
+// ============================================================================
+(function(){
+  "use strict";
+
+  // index.html 이 예전에 쓰던 것과 같은 주소/버전
+  var GAME_SRC  = "game.js?v=12";
+  // game.js 실행이 끝난 뒤에 붙일 파일들 (game.js 보다 먼저 실행되면 안 된다)
+  //   lb_extra.js    순위표 추가 기능 (전체 순위 보기 / 등록 허용 등수)
+  //   mode_switch.js 시작 화면의 일반/하드 슬라이딩 스위치
+  //   audio_wake.js  잠든 효과음(AudioContext) 깨우기 (아래 4번 패치와 짝)
+  var AFTER_SRC = [
+    "assets/lb_extra.js?v=1",
+    "assets/mode_switch.js?v=1",
+    "assets/audio_wake.js?v=1"
+  ];
+
+  var PATCHES = [
+    // ---- 쥐와 까마귀의 판정 박스 -------------------------------------------
+    //  game.js 는 똥에만 판정 축소값(hitTop 0.72 / hitSide 0.18)을 주고, 쥐와 까마귀는
+    //  기본값(hitSide 0.08, hitTop 없음 = 세로 100%)으로 둔다. 즉 쥐/까마귀는 그림
+    //  세로 전체가 판정이라 똥보다 훨씬 엄격했다. "점프하고 뒷다리가 새 날개에 걸리거나,
+    //  머리에 닿지도 않았는데 죽는" 느낌의 절반이 이것이었다.
+    { n: "쥐 판정 박스",
+      f: "      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED, hop: 0, hops: hardMode() });",
+      r: "      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED, hop: 0, hops: hardMode(),\n        hitTop: (window.MOUSE_HIT_TOP_FRAC || 1),\n        hitSide: (window.MOUSE_HIT_SIDE_FRAC == null ? 0.08 : window.MOUSE_HIT_SIDE_FRAC) });" },
+    { n: "까마귀 판정 박스",
+      f: "      obstacles.push({ el: el, x: x, w: crw, h: crh, elevation: 0, type: type });",
+      r: "      obstacles.push({ el: el, x: x, w: crw, h: crh, elevation: 0, type: type,\n        hitTop: (window.CROW_HIT_TOP_FRAC || 1),\n        hitSide: (window.CROW_HIT_SIDE_FRAC == null ? 0.08 : window.CROW_HIT_SIDE_FRAC) });" },
+    // ---- 까마귀 연출과 판정의 어긋남 ---------------------------------------
+    //  까마귀는 그림만 위로 띄우고 판정은 땅에 고정한다 (판정이 따라 움직이면 언제
+    //  눌러야 하는지 알 수 없어지므로 의도된 설계다). 문제는 그림이 0으로 내려오는
+    //  지점이 charLeftPx, 즉 캐릭터 판정보다 뒤쪽이라는 것이다. 그래서 겹쳐 있는 내내
+    //  그림이 판정보다 위에 떠 있었다 - 실측 최대 15.1px, 까마귀 몸통의 3분의 1이다.
+    //  기준점을 캐릭터 판정 쪽으로 옮기면 어긋남이 3.5px 로 줄어든다.
+    { n: "까마귀 연출 기준점",
+      f: "          var crowDist = Math.abs(o.x - charLeftPx);",
+      r: "          var crowDist = Math.abs(o.x - (charLeftPx + (window.CROW_ARC_ANCHOR_CW || 0) * character.offsetWidth));" },
+    // ---- 효과음 깨우기 ------------------------------------------------------
+    //  효과음은 Web Audio(AudioContext)로 그 자리에서 만드는데, 모바일은 페이지에서
+    //  나는 소리가 전부 멈춰 있는 동안 그 장치를 재워버린다. game.js 는 게임을 시작할
+    //  때 한 번만 깨우기 때문에, 음소거로 음악이 끊긴 사이에 잠들면 아무도 다시
+    //  깨워주지 않는다. 그게 "껐다 켜면 BGM 은 나오는데 효과음만 죽는" 상태의 원인이다.
+    //  깨우는 손잡이가 game.js 안쪽(클로저)에 갇혀 있어서 밖에서 손이 닿지 않으므로,
+    //  window 로 내보내기만 한다. 실제로 부르는 쪽은 assets/audio_wake.js 다.
+    { n: "효과음 깨우기",
+      f: "  var audioCtx = null, masterGain = null, sfxGain = null;",
+      r: "  var audioCtx = null, masterGain = null, sfxGain = null;\n" +
+         "  window.__creamResumeAudio = function(){\n" +
+         "    try {\n" +
+         "      if (audioCtx && audioCtx.state !== 'running' && audioCtx.resume) audioCtx.resume();\n" +
+         "    } catch (e) {}\n" +
+         "  };" }
+  ];
+
+  function note(msg){
+    try { if (window.console && console.warn) console.warn("[main_boot] " + msg); } catch (e) {}
+  }
+
+  function runAfter(){
+    for (var i = 0; i < AFTER_SRC.length; i++){
+      var s = document.createElement("script");
+      s.src = AFTER_SRC[i];
+      document.body.appendChild(s);
+    }
+  }
+
+  // 마지막 방어선: 예전 index.html 과 똑같이 <script src="game.js"> 를 붙인다.
+  // 이 길로 들어오면 판정 패치만 없는 2026-09-24 이전 게임이 된다.
+  var started = false;
+  function plainScript(why){
+    if (started) return;
+    started = true;
+    note(why + " -> 원본 game.js 를 그대로 붙입니다.");
+    var s = document.createElement("script");
+    s.src = GAME_SRC;
+    s.onload = runAfter;
+    s.onerror = function(){ note("원본 game.js 로드도 실패했습니다."); };
+    document.body.appendChild(s);
+  }
+
+  // 한 군데가 아니면(0군데 또는 2군데 이상) 그 패치만 건너뛴다.
+  function applyOne(src, p){
+    var parts = src.split(p.f);
+    if (parts.length !== 2){
+      note("패치 건너뜀: " + p.n + " (" + (parts.length - 1) + "군데 발견, 1군데여야 함)");
+      return src;
+    }
+    return parts[0] + p.r + parts[1];
+  }
+
+  // 실행하지 않고 문법만 본다. 통과하면 그 글자로 게임을 돌려도 안전하다.
+  function parses(src){
+    try { new Function(src); return true; }
+    catch (e) { note("문법 검사 실패: " + (e && e.message)); return false; }
+  }
+
+  if (!window.fetch || !window.Promise){ plainScript("이 브라우저에는 fetch 가 없습니다"); return; }
+
+  fetch(GAME_SRC).then(function(res){
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.text();
+  }).then(function(src){
+    if (!src || src.length < 50000) throw new Error("내용이 이상합니다 (" + (src ? src.length : 0) + "자)");
+    if (started) return;
+
+    var out = src, i;
+    for (i = 0; i < PATCHES.length; i++) out = applyOne(out, PATCHES[i]);
+    if (out !== src && !parses(out)){
+      note("패치를 모두 버리고 원본을 실행합니다.");
+      out = src;
+    }
+
+    started = true;
+    // 개발자 도구에서 이 코드가 어느 파일인지 알아볼 수 있게 이름을 붙인다.
+    out += "\n//# sourceURL=cream-game.js\n";
+    (0, eval)(out);
+    runAfter();
+  }).catch(function(err){
+    // eval 까지 갔다가 터진 경우에는 이미 game.js 가 반쯤 실행됐을 수 있으므로,
+    // 다시 붙이면 리스너가 두 번 달린다. started 로 그 경우를 막는다.
+    if (started){
+      note("게임 실행 중 오류: " + ((err && err.message) ? err.message : String(err)));
+      try { runAfter(); } catch (e) {}
+      return;
+    }
+    plainScript("game.js 를 받지 못했습니다 (" + ((err && err.message) ? err.message : String(err)) + ")");
+  });
+})();

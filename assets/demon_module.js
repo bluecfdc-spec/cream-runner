@@ -21,6 +21,7 @@
         천장(배수 8.0)에서는 0.775초 = 화면높이의 1.30배다.
         2026-09-23 밤에 이 값을 무시하고 0.78~0.90배로 직접 넣었다가, 게임이 보장하는
         간격보다 40% 좁아서 실제로 플레이가 불가능했다.
+        ※ 단, 이 하한이 필요한 건 "점프로 넘어야 하는" 사이뿐이다. 아래 demonGaps 참고.
 
      2) 도약 구간 - 악마 크기에서 역산한다
         이 패턴의 핵심은 "악마가 떠 있는 동안 그 아래로 지나간다"는 것이다. 그래서
@@ -30,7 +31,7 @@
         그래서 겹침 구간(캐릭터 판정폭 + 악마 판정폭)을 먼저 구하고, 그보다
         DEMON_HOP_MARGIN 만큼 넉넉한 구간에서 "캐릭터 키를 넘는 높이"가 유지되도록
         포물선의 폭을 역산한다. 크기를 1.0배로 두든 2.6배로 두든 겹침 양끝에서의
-        판정 높이는 항상 같다 (실측 69px, 필요 47px).
+        판정 높이는 항상 같다.
         구간은 소환 순간의 목숨 상태로 한 번만 계산해서 그 악마에 박아둔다. 도중에
         바뀌면 화면에서 높이가 튀기 때문이다.
 
@@ -50,8 +51,10 @@
 
   //  테스트 주소(?demontest=1)에서만, 주소창에서 숫자를 바로 바꿔볼 수 있게 해둔다.
   //    dh   = 악마 크기 (흑견 키 배수)     dhop = 점프 높이 (화면높이 배수)
-  //    dgap = 간격 배수                    dmar = 도약 구간 여유
-  //  예)  endless.html?demontest=1&dh=2.2&dhop=0.4
+  //    dgap = 간격 전체 배수               dmar = 도약 구간 여유
+  //    dg1  = 똥1-똥2 간격 배수            dg2  = 똥2-악마 간격 배수
+  //    dg3  = 악마-까마귀 간격 배수
+  //  예)  endless.html?demontest=1&dh=2.2&dhop=0.5&dg2=0.8
   //  demontest 가 없으면 이 함수는 주소를 아예 보지 않는다. 즉 운영 주소에서는
   //  주소에 무엇을 붙여도 숫자가 바뀌지 않는다 (난이도 조작 방지).
   function demonQ(name, fallback){
@@ -90,11 +93,54 @@
     demonNextAt = gameTime + demonPickWait();
   }
 
-  // game.js 의 스폰 하한을 그대로 옮긴 것. 여기가 이 패턴의 간격 기준이다.
+  // 체공 시간. game.js 와 같은 식이다.
+  function demonAirSec(peak){ return 2 * Math.sqrt(2 * peak / GRAVITY); }
+
+  // game.js 의 스폰 하한. "2단 점프까지 완전히 체공하고 착지한 뒤 0.21초 여유".
+  // 점프로 넘어야 하는 장애물 사이에는 이만큼이 필요하다.
   function demonGapPx(){
-    var peak = hardMode() ? JUMP_PEAK_2 : JUMP_PEAK_1;
-    var airSec = 2 * Math.sqrt(2 * peak / GRAVITY);
-    return (airSec + 0.21) * speed * DEMON_GAP_MULT;
+    return (demonAirSec(hardMode() ? JUMP_PEAK_2 : JUMP_PEAK_1) + 0.21)
+           * speed * DEMON_GAP_MULT;
+  }
+
+  // ★ 세 간격은 역할이 달라서 기준이 다르다 ★
+  //   g1  똥1 -> 똥2    : 점프하고 착지해서 또 점프한다. game.js 의 하한 그대로.
+  //   g2  똥2 -> 악마    : 악마는 점프해서 넘는 게 아니라 밑으로 지나간다. 그러니
+  //                       "착지만 해 있으면" 된다. 2단 점프까지 다 쓴 사람도 착지할
+  //                       시간(체공 + 0.06초)만 주면 충분하다. 여기에 점프용 하한을
+  //                       쓰면 똥 뒤가 한참 비어서 패턴으로 보이지 않는다.
+  //   g3  악마 -> 까마귀 : 까마귀를 뛰려고 누르는 순간 악마가 이미 지나가 있어야 한다.
+  //                       그래서 1단 점프 거리 + 악마 판정폭에서 역산한다. 악마를
+  //                       키우면 이 간격이 자동으로 늘어난다.
+  function demonGaps(){
+    var g1 = demonGapPx();
+    var dbl = demonAirSec(JUMP_PEAK_2) * speed;
+    var sgl = demonAirSec(JUMP_PEAK_1) * speed;
+    var g2 = (dbl + 0.06 * speed) * DEMON_GAP_MULT;
+    var g3 = (sgl + 0.92 * demonSize().w + 0.06 * speed) * DEMON_GAP_MULT;
+    g1 *= demonQ('dg1', 1);
+    g2 *= demonQ('dg2', 1);
+    g3 *= demonQ('dg3', 1);
+    return [g1, g2, g3];
+  }
+
+  // 테스트 주소에서만, 방금 소환한 패턴의 실제 내용을 화면 왼쪽 위에 적어준다.
+  // 조각이 빠지거나 간격이 이상하면 폰에서도 바로 보인다.
+  var demonSeq = 0;
+  function demonNote(txt){
+    try {
+      if (!new URLSearchParams(window.location.search).has('demontest')) return;
+      var el = document.getElementById('demonNote');
+      if (!el){
+        el = document.createElement('div');
+        el.id = 'demonNote';
+        el.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99998;' +
+          'background:rgba(0,0,0,.62);color:#9fe8ff;padding:5px 7px;border-radius:7px;' +
+          'font:600 11px/1.45 ui-monospace,monospace;white-space:pre;pointer-events:none;';
+        document.body.appendChild(el);
+      }
+      el.textContent = txt;
+    } catch (e) {}
   }
 
   function demonSize(){
@@ -187,21 +233,29 @@
   function demonSpawn(appH){
     var rect = app.getBoundingClientRect();
     var x0 = rect.width + 20;
-    var g = demonGapPx();
+    var g = demonGaps();
     var p1 = demonMakePoop(x0);
-    var p2 = demonMakePoop(x0 + g);
-    demonBody = demonMakeBody(x0 + 2 * g, appH);
-    var cr = demonMakeCrow(x0 + 3 * g);
+    var p2 = demonMakePoop(x0 + g[0]);
+    demonBody = demonMakeBody(x0 + g[0] + g[1], appH);
+    var cr = demonMakeCrow(x0 + g[0] + g[1] + g[2]);
     demonPieces = [p1, p2, demonBody, cr];
     // 패턴이 흐르는 동안 일반 장애물이 끼어들면 설계가 무너진다.
     crowPending = true;
+    demonSeq++;
+    var got = 0;
+    for (var i = 0; i < demonPieces.length; i++){
+      if (obstacles.indexOf(demonPieces[i]) >= 0) got++;
+    }
+    demonNote('악마패턴 #' + demonSeq + '  조각 ' + got + '/4\n' +
+              '간격 ' + g[0].toFixed(0) + ' / ' + g[1].toFixed(0) + ' / ' + g[2].toFixed(0) + 'px\n' +
+              '악마 x' + DEMON_H_MULT + '  점프 ' + DEMON_HOP + '  화면폭 ' + rect.width.toFixed(0));
   }
 
   function demonRelease(){
     crowPending = false;
     spawnTimer = 0;
     // 까마귀를 넘은 사람이 착지할 시간을 벌어준다. 게임 자체의 최소 간격을 한 번 더 준다.
-    nextSpawnIn = (demonGapPx() / Math.max(1, speed)) * 1000;
+    nextSpawnIn = (demonGapPx() / Math.max(1, speed)) * 1000;   // 착지할 시간
     demonPieces = null;
     demonBody = null;
     demonNextAt = gameTime + demonPickWait();

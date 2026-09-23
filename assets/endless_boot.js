@@ -10,6 +10,13 @@
 //    - 나중에 본 게임이 수정되면 무한질주도 그 수정을 자동으로 물려받는다.
 //    - 복사본이 따로 없으니 두 파일이 서로 달라지는 일도 없다.
 //
+//  [바꾸는 것]
+//    1~5) 난이도: 처음부터 빠르게 시작, 2분에 천장 도달 후 고정
+//      6) BGM 무한 반복 -> 마지막 곡이 끝나지 않으므로 왕(보스)이 등장하지 않는다
+//      7) 순위표를 endless 컬렉션으로 분리
+//    8~9) 흑견 연결: 회피 게이지 충전과 매 프레임 갱신을 끼워넣는다
+//     10) 흑견 본체(assets/dog_module.js)를 game.js 안쪽에 통째로 심는다
+//
 //  [안전장치]
 //  바꿔치기할 문장을 game.js에서 정확히 한 군데도 못 찾거나 두 군데 이상 찾으면,
 //  게임을 실행하지 않고 화면에 오류를 띄운 뒤 멈춘다. 어중간하게 반쯤 적용된 상태로
@@ -21,9 +28,13 @@
 
   // index.html과 같은 주소/버전을 쓴다. 브라우저 캐시를 공유하므로 추가 다운로드가
   // 사실상 발생하지 않는다.
-  var GAME_SRC = "game.js?v=12";
+  var GAME_SRC   = "game.js?v=12";
+  // 흑견 본체. 따로 둔 이유는 그냥 읽고 고칠 수 있게 하기 위해서다.
+  var DOG_SRC    = "assets/dog_module.js?v=1";
   // game.js 실행이 끝난 뒤에 붙일 순위표 파일 (game.js보다 먼저 실행되면 안 된다)
-  var AFTER_SRC = "assets/lb_endless.js?v=1";
+  var AFTER_SRC  = "assets/lb_endless.js?v=1";
+  // 흑견 본체를 끼워넣을 자리. game.js 안에서 딱 한 번 나오는 문장이어야 한다.
+  var DOG_ANCHOR = "  function activateInvincibility(){";
 
   var PATCHES = [
     { n: "난이도 램프 계수",
@@ -40,13 +51,19 @@
       r: "      if (window.ENDLESS_MAX_MULT && speedMultiplier > window.ENDLESS_MAX_MULT) speedMultiplier = window.ENDLESS_MAX_MULT;\n      var waveFactor = 1 + SPEED_WAVE_AMPLITUDE * Math.sin((gameTime / SPEED_WAVE_PERIOD) * Math.PI * 2);" },
     { n: "시작 배수",
       f: "    if (TEST_MODE){\n      gameTime = TEST_START_SEC;\n      musicRampProgress = 1; // 음악 램프는 이미 다 적용된 상태\n      speedMultiplier = multiplierAtSecond(TEST_START_SEC);\n      lastLevelTime = gameTime;\n      lastLevelCount = 0;\n    }\n",
-      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n" },
+      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n    dogReset();   // 흑견 상태도 초기화\n" },
     { n: "BGM 무한반복(=보스 제거)",
       f: "      bgmPlayTrack(bgmQueue[0], { instant: true });",
       r: "      bgmPlayTrack(bgmQueue[0], { instant: true, loop: true });" },
     { n: "순위표 컬렉션 분리",
       f: "  var SCORES_COLLECTION = 'scores';",
-      r: "  var SCORES_COLLECTION = window.SCORES_COLLECTION || 'scores';" }
+      r: "  var SCORES_COLLECTION = window.SCORES_COLLECTION || 'scores';" },
+    { n: "흑견 게이지 충전",
+      f: "    dodgeGauge++;",
+      r: "    dodgeGauge++;\n    dogAddDodge();   // 흑견 게이지도 같은 회피로 함께 찬다" },
+    { n: "흑견 매 프레임 갱신",
+      f: "      score += dt * 12;",
+      r: "      dogUpdate(dt);\n      score += dt * 12;" }
   ];
 
   function fail(why){
@@ -73,25 +90,39 @@
     document.body.appendChild(s);
   }
 
+  function grab(url, minLen, label){
+    return fetch(url).then(function(res){
+      if (!res.ok) throw new Error(label + " 를 받지 못했습니다 (HTTP " + res.status + ")");
+      return res.text();
+    }).then(function(t){
+      if (!t || t.length < minLen) throw new Error(label + " 내용이 이상합니다 (" + (t ? t.length : 0) + "자)");
+      return t;
+    });
+  }
+
+  function apply(src, find, rep, label){
+    var parts = src.split(find);
+    if (parts.length !== 2){
+      throw new Error("패치 지점을 찾지 못했습니다: " + label +
+                      " (" + (parts.length - 1) + "군데 발견, 1군데여야 함)");
+    }
+    return parts[0] + rep + parts[1];
+  }
+
   if (!window.fetch){ fail("브라우저가 너무 오래되었습니다."); return; }
 
-  fetch(GAME_SRC).then(function(res){
-    if (!res.ok) throw new Error("game.js 를 받지 못했습니다 (HTTP " + res.status + ")");
-    return res.text();
-  }).then(function(src){
-    if (!src || src.length < 50000) throw new Error("game.js 내용이 이상합니다 (" + (src ? src.length : 0) + "바이트)");
+  Promise.all([
+    grab(GAME_SRC, 50000, "game.js"),
+    grab(DOG_SRC, 1000, "흑견 본체(dog_module.js)")
+  ]).then(function(got){
+    var src = got[0], dog = got[1];
 
     for (var i = 0; i < PATCHES.length; i++){
-      var p = PATCHES[i];
-      // split 으로 쪼개면 일치 개수를 세는 것과 치환을 한 번에 할 수 있고,
-      // 치환 문자열 안의 $ 기호가 특수문자로 해석되는 사고도 없다.
-      var parts = src.split(p.f);
-      if (parts.length !== 2){
-        throw new Error("패치 지점을 찾지 못했습니다: " + p.n +
-                        " (" + (parts.length - 1) + "군데 발견, 1군데여야 함)");
-      }
-      src = parts[0] + p.r + parts[1];
+      src = apply(src, PATCHES[i].f, PATCHES[i].r, PATCHES[i].n);
     }
+    // 흑견 본체를 game.js 안쪽(같은 클로저)에 심는다. 그래야 obstacles/score 같은
+    // 게임 내부 변수에 접근할 수 있다.
+    src = apply(src, DOG_ANCHOR, dog + "\n" + DOG_ANCHOR, "흑견 본체 삽입 위치");
 
     // 개발자 도구에서 이 코드가 어느 파일인지 알아볼 수 있게 이름을 붙인다.
     src += "\n//# sourceURL=endless-game.js\n";

@@ -91,6 +91,12 @@ window.ENDLESS_DOG_GAUGE_MULT = 2;     // 유모차 게이지의 몇 배로 차�
 //  똥과 쥐는 항상 지면에 있어서 이 값과 무관하게 언제든 잡힌다.
 window.ENDLESS_DOG_REACH      = 2.0;
 
+//  흑견이 까마귀도 물게 할지. 기본은 false.
+//  까마귀는 멀리서 높이 떠 있다가 크림이 코앞에서 급강하하는 구조라, 흑견이
+//  뛰어오르는 동작 없이 물면 '허공을 물었다'처럼 보인다. 점프 연출을 넣으면 true로
+//  켠다. false여도 똥과 쥐는 그대로 다 잡는다 (까마귀는 전체 장애물의 5% 정도).
+window.ENDLESS_DOG_CATCH_CROW = false;
+
 //  돌진/복귀 속도 (스크롤 속도의 배수). 올리면 더 총알같아진다.
 window.ENDLESS_DOG_DASH       = 2.4;
 window.ENDLESS_DOG_BACK       = 3.2;

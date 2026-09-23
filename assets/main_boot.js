@@ -17,6 +17,7 @@
 //    4) 효과음을 밖에서 깨우고/음소거할 수 있게 손잡이를 내보낸다
 //    5) 효과음 장치가 만들어졌다고 알린다 (iOS 오디오 세션 붙잡기용)
 //    6) 저장해둔 효과음 음소거 설정이 게임을 다시 시작해도 유지되게 한다
+//    7) 추가 장애물 패턴(똥쥐똥 / 똥똥)을 장애물 생성부에 연결한다
 //  무한질주 쪽 1~3번(14~16)과 완전히 같은 문장이다. 그래서 두 모드의 판정이 같다.
 //
 //  ★ [안전장치 - 무한질주와 다른 점] ★
@@ -26,6 +27,7 @@
 //    - 바꿀 자리를 못 찾으면: 그 패치만 건너뛰고 나머지를 적용한다 (콘솔에 경고).
 //    - 바꾼 결과가 문법에 안 맞으면: 패치를 전부 버리고 받아온 원본을 실행한다.
 //    - game.js 를 못 받아오면: 예전처럼 <script src="game.js"> 를 그냥 붙인다.
+//    - 추가 패턴 파일을 못 받아오면: 그냥 기존 패턴만 나온다.
 //  즉 최악의 경우가 "2026-09-24 이전과 똑같은 게임"이다. 게임이 안 뜨는 경우는 없다.
 // ============================================================================
 (function(){
@@ -33,6 +35,10 @@
 
   // index.html 이 예전에 쓰던 것과 같은 주소/버전
   var GAME_SRC  = "game.js?v=12";
+  // 추가 장애물 패턴 본체 (똥쥐똥 / 똥똥). 무한질주와 완전히 같은 파일을 쓴다.
+  // game.js 안쪽(같은 클로저)에 심어야 obstacles 같은 내부 값에 손이 닿는다.
+  var PAT_SRC   = "assets/pattern_module.js?v=1";
+  var PAT_ANCHOR = "  function activateInvincibility(){";
   // game.js 실행이 끝난 뒤에 붙일 파일들 (game.js 보다 먼저 실행되면 안 된다)
   //   lb_extra.js    순위표 추가 기능 (전체 순위 보기 / 등록 허용 등수)
   //   mode_switch.js 시작 화면의 일반/하드 슬라이딩 스위치
@@ -118,7 +124,19 @@
     //  (assets/sfx_btn.js 가 표시를 남기고, 여기서 그 표시를 읽는다. 둘은 짝이다)
     { n: "효과음 음소거 유지",
       f: "      sfxGain.gain.value = 0.6;",
-      r: "      sfxGain.gain.value = 0.6;\n      if (window.__creamSfxMuted) sfxGain.gain.value = 0;" }
+      r: "      sfxGain.gain.value = 0.6;\n      if (window.__creamSfxMuted) sfxGain.gain.value = 0;" },
+    // ---- 추가 패턴 연결 (똥쥐똥 / 똥똥) ------------------------------------
+    //  기존 콤보(똥+쥐)가 나온 경우에는 그 뒤에 똥 하나를 더 붙일지 물어보고,
+    //  콤보가 안 나온 평범한 똥에는 바짝 붙는 똥 하나를 붙일지 물어본다.
+    //  실제 판단과 간격 계산은 assets/pattern_module.js 가 한다.
+    //  모듈이 없으면 typeof 검사에서 걸러져 예전과 똑같이 동작한다.
+    { n: "추가 패턴 연결",
+      f: "      nextSpawnIn = Math.max(nextSpawnIn, 1450);\n    }\n  }\n",
+      r: "      nextSpawnIn = Math.max(nextSpawnIn, 1450);\n" +
+         "      if (typeof patAfterCombo === 'function') patAfterCombo(x, pw, ph);\n" +
+         "    } else if (!skipCombo && typeof patPoopPair === 'function'){\n" +
+         "      patPoopPair(x, pw, ph);\n" +
+         "    }\n  }\n" }
   ];
 
   function note(msg){
@@ -166,17 +184,42 @@
     catch (e) { note("문법 검사 실패: " + (e && e.message)); return false; }
   }
 
+  // 추가 패턴 파일은 없어도 게임이 돌아가야 하므로, 실패하면 null 로 넘긴다.
+  function grabSoft(url, minLen, label){
+    return fetch(url).then(function(res){
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    }).then(function(t){
+      if (!t || t.length < minLen) throw new Error("내용이 이상합니다");
+      return t;
+    }).catch(function(e){
+      note(label + " 를 못 받았습니다 (" + ((e && e.message) || e) + ") -> 기존 패턴만 나옵니다.");
+      return null;
+    });
+  }
+
   if (!window.fetch || !window.Promise){ plainScript("이 브라우저에는 fetch 가 없습니다"); return; }
 
-  fetch(GAME_SRC).then(function(res){
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.text();
-  }).then(function(src){
+  Promise.all([
+    fetch(GAME_SRC).then(function(res){
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.text();
+    }),
+    grabSoft(PAT_SRC, 500, "추가 패턴(pattern_module.js)")
+  ]).then(function(got){
+    var src = got[0], pat = got[1];
     if (!src || src.length < 50000) throw new Error("내용이 이상합니다 (" + (src ? src.length : 0) + "자)");
     if (started) return;
 
     var out = src, i;
     for (i = 0; i < PATCHES.length; i++) out = applyOne(out, PATCHES[i]);
+    // 추가 패턴 본체를 game.js 안쪽에 심는다. 자리를 못 찾으면 안 심고 넘어간다
+    // (위 "추가 패턴 연결" 패치가 typeof 로 확인하므로 예전 동작이 된다).
+    if (pat){
+      var ps = out.split(PAT_ANCHOR);
+      if (ps.length === 2) out = ps[0] + pat + "\n" + PAT_ANCHOR + ps[1];
+      else note("추가 패턴을 심을 자리를 못 찾았습니다 (" + (ps.length - 1) + "군데) -> 기존 패턴만 나옵니다.");
+    }
     if (out !== src && !parses(out)){
       note("패치를 모두 버리고 원본을 실행합니다.");
       out = src;

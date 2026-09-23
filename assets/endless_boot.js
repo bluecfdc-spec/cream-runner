@@ -20,6 +20,7 @@
 //         game.js 안쪽에 통째로 심는다
 //     12) 가족 복귀(라이프) 보너스를 내지 않는다
 //     13) 스크롤 속도 상한을 배수로 열어준다 (중력 상한은 game.js가 window로 읽는다)
+//      5) 안에서 시작 목숨 상태도 정한다 (무한질주는 크림이 혼자부터 시작)
 //  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
@@ -58,7 +59,7 @@
       r: "      if (window.ENDLESS_MAX_MULT && speedMultiplier > window.ENDLESS_MAX_MULT) speedMultiplier = window.ENDLESS_MAX_MULT;\n      var waveFactor = 1 + SPEED_WAVE_AMPLITUDE * Math.sin((gameTime / SPEED_WAVE_PERIOD) * Math.PI * 2);" },
     { n: "시작 배수",
       f: "    if (TEST_MODE){\n      gameTime = TEST_START_SEC;\n      musicRampProgress = 1; // 음악 램프는 이미 다 적용된 상태\n      speedMultiplier = multiplierAtSecond(TEST_START_SEC);\n      lastLevelTime = gameTime;\n      lastLevelCount = 0;\n    }\n",
-      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n    dogReset();   // 흑견 상태도 초기화\n    demonReset(); // 악마 패턴 타이머도 초기화\n" },
+      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n    // 목숨 상태. 이 자리는 reset() 이 lifeState = 3 을 넣은 바로 뒤이고, 아래에서\n    // layout() 이 다시 불리므로 판정 박스 오프셋도 같이 맞춰진다.\n    lifeState = window.ENDLESS_START_LIFE || 3;\n    setCharImage(false);   // 첫 프레임부터 그 상태의 달리기 그림으로\n    dogReset();   // 흑견 상태도 초기화\n    demonReset(); // 악마 패턴 타이머도 초기화\n" },
     { n: "BGM 무한반복(=보스 제거)",
       f: "      bgmPlayTrack(bgmQueue[0], { instant: true });",
       r: "      bgmPlayTrack(bgmQueue[0], { instant: true, loop: true });" },

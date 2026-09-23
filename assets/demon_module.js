@@ -82,6 +82,7 @@
   var demonNextAt = 0;
   var demonPieces = null;
   var demonBody   = null;
+  var demonArming = false;   // 일반 스폰을 멈추고 화면이 비기를 기다리는 중
 
   function demonPickWait(){
     return DEMON_WAIT_MIN + Math.random() * Math.max(0, DEMON_WAIT_MAX - DEMON_WAIT_MIN);
@@ -90,6 +91,7 @@
   function demonReset(){
     demonPieces = null;
     demonBody = null;
+    demonArming = false;
     demonNextAt = gameTime + demonPickWait();
   }
 
@@ -230,6 +232,15 @@
     return o;
   }
 
+  // 똥1이 나올 자리(appW+20) 앞으로 한 간격이 비어 있는지.
+  function demonSpaceReady(appW){
+    var clearX = appW + 20 - demonGaps()[0];
+    for (var i = 0; i < obstacles.length; i++){
+      if (obstacles[i].x + obstacles[i].w > clearX) return false;
+    }
+    return true;
+  }
+
   function demonSpawn(appH){
     var rect = app.getBoundingClientRect();
     var x0 = rect.width + 20;
@@ -241,6 +252,7 @@
     demonPieces = [p1, p2, demonBody, cr];
     // 패턴이 흐르는 동안 일반 장애물이 끼어들면 설계가 무너진다.
     crowPending = true;
+    demonArming = false;
     demonSeq++;
     var got = 0;
     for (var i = 0; i < demonPieces.length; i++){
@@ -280,16 +292,27 @@
       return;
     }
 
+    // ---- 시작 자리 만들기 ----------------------------------------------------
+    //  패턴의 똥1은 화면 오른쪽 바깥(appW+20)에서 나온다. 그 앞에 일반 장애물이
+    //  너무 가까이 있으면 똥1과 겹쳐서 피할 수 없는 배치가 된다. 그래서 "똥1 자리
+    //  앞으로 한 간격(g1)이 비어 있을 때"만 시작한다.
+    //
+    //  ★ 그냥 기다리기만 하면 영원히 안 나온다 ★
+    //  천장 속도에서 일반 장애물은 646ms마다 나오고, 그 구간을 빠져나가는 데는
+    //  837ms가 걸린다. 즉 가만히 두면 비는 순간이 아예 생기지 않는다. 실제로
+    //  2026-09-23 밤에 이 조건 때문에 악마가 한 번도 나오지 않았다.
+    //  그래서 순서를 뒤집었다. 시간이 되면 먼저 일반 스폰을 멈춰놓고(crowPending),
+    //  앞의 장애물들이 흘러 지나가기를 기다린 뒤에 패턴을 낸다. 스폰이 멈춰 있으니
+    //  1초 안에 반드시 자리가 생긴다.
+    if (demonArming){
+      if (demonSpaceReady(appW)) demonSpawn(appH);
+      return;
+    }
     // 아직 천장에 도달하지 않았으면 내지 않는다.
     if (!window.ENDLESS_MAX_MULT || speedMultiplier < window.ENDLESS_MAX_MULT - 0.001) return;
-    // 까마귀 경고가 떠 있으면 다음 기회로 넘긴다.
+    // 까마귀 경고가 떠 있으면 다음 기회로 넘긴다 (경고가 끝나면 다시 들어온다).
     if (crowPending) return;
     if (gameTime < demonNextAt) return;
-    // 화면 오른쪽이 한 간격 이상 비었을 때만 시작한다. 방금 생긴 일반 장애물이 남아
-    // 있으면 패턴의 똥1과 겹쳐서 피할 수 없는 배치가 만들어진다.
-    var clearX = appW - demonGapPx();
-    for (var i = 0; i < obstacles.length; i++){
-      if (obstacles[i].x + obstacles[i].w > clearX) return;
-    }
-    demonSpawn(appH);
+    demonArming = true;
+    crowPending = true;   // 여기서부터 일반 장애물은 나오지 않는다
   }

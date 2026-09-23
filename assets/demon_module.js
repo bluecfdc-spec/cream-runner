@@ -78,13 +78,20 @@
       (window.ENDLESS_DEMON_HOP_MARGIN == null) ? 0.8 : window.ENDLESS_DEMON_HOP_MARGIN);
   var DEMON_WAIT_MIN = window.ENDLESS_DEMON_WAIT_MIN || 16;
   var DEMON_WAIT_MAX = window.ENDLESS_DEMON_WAIT_MAX || 40;
+  //  한 판에서 첫 패턴까지만 따로 쓰는 대기 시간(초). 시작부터 천장인 설정에서는
+  //  16~40초를 기다리면 "바로 나온다"는 느낌이 안 나기 때문에 첫 번째만 짧게 준다.
+  //  두 번째부터는 위의 WAIT_MIN ~ WAIT_MAX 를 그대로 쓴다.
+  var DEMON_FIRST_WAIT = (window.ENDLESS_DEMON_FIRST_WAIT == null)
+                       ? 6 : window.ENDLESS_DEMON_FIRST_WAIT;
 
   var demonNextAt = 0;
   var demonPieces = null;
   var demonBody   = null;
   var demonArming = false;   // 일반 스폰을 멈추고 화면이 비기를 기다리는 중
+  var demonFirstDone = false;  // 이 판에서 첫 패턴이 이미 나왔는지
 
   function demonPickWait(){
+    if (!demonFirstDone) return DEMON_FIRST_WAIT;
     return DEMON_WAIT_MIN + Math.random() * Math.max(0, DEMON_WAIT_MAX - DEMON_WAIT_MIN);
   }
 
@@ -92,6 +99,7 @@
     demonPieces = null;
     demonBody = null;
     demonArming = false;
+    demonFirstDone = false;   // demonPickWait 보다 먼저 꺼야 첫 대기시간이 적용된다
     demonNextAt = gameTime + demonPickWait();
   }
 
@@ -253,6 +261,7 @@
     // 패턴이 흐르는 동안 일반 장애물이 끼어들면 설계가 무너진다.
     crowPending = true;
     demonArming = false;
+    demonFirstDone = true;
     demonSeq++;
     var got = 0;
     for (var i = 0; i < demonPieces.length; i++){

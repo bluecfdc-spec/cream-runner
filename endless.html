@@ -59,6 +59,57 @@
     border-top:4px solid #1e3625;
   }
 
+  /* ---- 흑견 게이지 (예전 보스 진행바가 있던 자리) ----
+     유모차 게이지와 같은 모양이지만 파란색이다. 아주 작은 화면에서는 점프 버튼과
+     겹칠 수 있어 숨긴다 (기능은 그대로 동작한다). */
+  #dogBarWrap{
+    position:absolute;
+    top:56px;
+    left:10px;
+    right:10px;
+    z-index:4;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(230,239,255,.86);
+    border:2px solid rgba(120,150,210,.55);
+    border-radius:13px;
+    padding:4px 10px;
+    box-shadow:0 2px 0 rgba(31,43,61,.12);
+  }
+  @media (max-height:600px){ #dogBarWrap{ display:none; } }
+  #dogIcon{
+    width:24px; height:24px; object-fit:contain; flex:0 0 auto;
+    transform:scaleX(-1);
+    filter:drop-shadow(0 0 4px rgba(150,200,255,.95));
+  }
+  #dogTrack{
+    position:relative; flex:1 1 auto; height:11px;
+    border-radius:6px; background:rgba(90,106,134,.18); overflow:visible;
+  }
+  #dogFill{
+    position:relative; height:100%; width:0%; border-radius:6px;
+    background:linear-gradient(90deg,#8fc7ff,#2f5fa8);
+    transition:width .18s ease-out;
+  }
+  #dogFill.full{ animation:gaugeFillPulse .3s ease-in-out infinite alternate; }
+  #dogRider{
+    position:absolute; top:50%; left:0%;
+    width:26px; height:26px; object-fit:contain;
+    transform:translate(-50%,-50%) scaleX(-1);
+    transition:left .18s ease-out;
+    pointer-events:none;
+    filter:drop-shadow(0 2px 2px rgba(20,20,20,.4));
+    z-index:2;
+  }
+
+  /* 우리 편 흑견. 장애물 흑견과 똑같은 그림이라, 파란 빛과 바라보는 방향으로 구분한다. */
+  .ally-dog{
+    z-index:6;
+    filter:drop-shadow(0 0 7px rgba(140,200,255,.95)) drop-shadow(0 3px 2px rgba(20,20,20,.35));
+  }
+  .ally-dog.face-right{ transform:scaleX(-1); }
+
   /* ---- 별 ----
      반짝임 주기를 조금씩 다르게 줘서 기계적으로 안 보이게 한다. */
   .star{
@@ -181,9 +232,13 @@
       <img id="gaugeIcon" alt="개모차">
       <div id="gaugeTrack"><div id="gaugeFill"></div><img id="gaugeRider" alt=""></div>
     </div>
-    <!-- 보스 진행바(#bossProgWrap)는 무한질주에 왕이 등장하지 않으므로 통째로 뺐다.
-         game.js는 이 요소들이 없을 때를 모두 대비해 두었으므로(전부 null 검사가 걸려
-         있다) 빼도 아무 문제가 없다. 나중에 이 자리에 흑견 게이지가 들어갈 예정이다. -->
+    <!-- 보스 진행바(#bossProgWrap)는 무한질주에 왕이 등장하지 않으므로 통째로 뺐고,
+         그 자리에 흑견 게이지를 넣었다. game.js는 보스 진행바가 없을 때를 모두 대비해
+         두었으므로(전부 null 검사) 빼도 아무 문제가 없다. -->
+    <div id="dogBarWrap">
+      <img id="dogIcon" src="assets/img_dog_a.png" alt="흑견">
+      <div id="dogTrack"><div id="dogFill"></div><img id="dogRider" src="assets/img_dog_a.png" alt=""></div>
+    </div>
     <button id="jumpBtn" type="button" aria-label="점프">점프</button>
   </div>
 

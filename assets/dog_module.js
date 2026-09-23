@@ -20,6 +20,10 @@
   var DOG_REACH_MULT  = window.ENDLESS_DOG_REACH || 2.0;
   var DOG_DASH_MULT   = window.ENDLESS_DOG_DASH || 2.4;
   var DOG_BACK_MULT   = window.ENDLESS_DOG_BACK || 3.2;
+  // 까마귀를 물지 여부. 기본은 false(안 문다).
+  // 까마귀는 크림이 코앞에서 급강하하는 구조라, 흑견이 뛰어오르는 동작 없이는
+  // '허공을 물었다'처럼 보인다. 점프 연출을 넣은 뒤에 true로 켤 예정이다.
+  var DOG_CATCH_CROW  = (window.ENDLESS_DOG_CATCH_CROW === true);
 
   var dogGauge = 0, dogActive = false, dogKills = 0;
   var dogPhase = 'escort';           // escort(동행) | dash(돌진) | back(복귀) | exit(퇴장)
@@ -55,9 +59,11 @@
     dogEl = document.createElement('div');
     // 장애물 흑견과 같은 클래스를 써서 달리는 프레임 애니메이션을 그대로 물려받는다.
     dogEl.className = 'obstacle dog ally-dog';
+    // 우리 편 전용 흑견 그림을 쓴다. assets/img_dog_a.png 는 지금 '장애물 쥐' 그림이라
+    // 그걸 쓰면 우리 편이 쥐로 나온다. 그림 파일이 없으면 예전처럼 장애물 그림으로 돌아간다.
     dogEl.innerHTML =
-      '<img class="dog-frame frame-a" src="' + IMG_DOG_A + '" alt="">' +
-      '<img class="dog-frame frame-b" src="' + IMG_DOG_B + '" alt="">';
+      '<img class="dog-frame frame-a" src="' + (window.ALLY_DOG_A || IMG_DOG_A) + '" alt="">' +
+      '<img class="dog-frame frame-b" src="' + (window.ALLY_DOG_B || IMG_DOG_B) + '" alt="">';
     obstaclesLayer.appendChild(dogEl);
   }
 
@@ -106,6 +112,7 @@
     return CROW_LIFT_MAX * (t * t);
   }
   function dogIsHazard(o){
+    if (o.type === 'crow') return DOG_CATCH_CROW;
     return o.type !== 'star' && o.type !== 'bonus' &&
            o.type !== 'finalstroller' && o.type !== 'boss';
   }

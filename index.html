@@ -27,9 +27,7 @@
 
   /* ---- 명예의 전당: 두 모드를 위아래로 나눠 보여준다 ----
      위 칸(크림이 산책)은 game.js가 채우고, 아래 칸(무한질주)은
-     assets/cross_top3.js 가 채운다. 게임오버 화면은 그대로 내 모드만 보여준다.
-     ※ 지금은 무한질주가 비공개라 아래 스타일은 쓰이지 않는다. 되살릴 때 필요하므로
-        지우지 말고 그대로 둔다. */
+     assets/cross_top3.js 가 채운다. 게임오버 화면은 그대로 내 모드만 보여준다. */
   .hall-part + .hall-part{
     margin-top:10px;
     padding-top:9px;
@@ -142,21 +140,20 @@
         </div>
       </div>
       <button class="primary" id="startBtn" type="button">시작하기</button>
-      <!-- 무한질주 모드 진입 버튼 (지금은 비공개). 이 주석만 풀면 다시 노출된다.
+      <!-- 무한질주 모드 진입 버튼. 다시 숨기려면 이 줄을 주석으로 감싸면 된다. -->
       <a class="mode-switch" href="endless.html">🌙 무한질주 (신규)<span>순위표 별도</span></a>
-      -->
       <div class="leaderboard" id="top3Board">
         <div class="leaderboard-title">🏆 명예의 전당</div>
-        <ol class="leaderboard-list" id="top3List"></ol>
-        <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
-        <!-- 무한질주 순위 칸 (지금은 비공개). 되살릴 때는 이 주석을 풀고,
-             위의 ol/div 두 줄을 다시 .hall-part div로 감싸주면 된다.
+        <div class="hall-part">
+          <div class="hall-part-title">🐾 크림이 산책</div>
+          <ol class="leaderboard-list" id="top3List"></ol>
+          <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
+        </div>
         <div class="hall-part">
           <div class="hall-part-title night">🌙 무한질주</div>
           <ol class="leaderboard-list" id="crossTop3List"></ol>
           <div class="leaderboard-empty" id="crossTop3Status">아직 기록이 없어요</div>
         </div>
-        -->
       </div>
       <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
       <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
@@ -311,11 +308,10 @@
 <!-- 순위표 추가 기능(전체 순위 보기 / 100위 등록 허용). game.js 뒤에 와야 한다.
      이 줄을 지우면 예전 동작으로 그대로 돌아간다. -->
 <script src="assets/lb_extra.js?v=1"></script>
-<!-- 명예의 전당의 '무한질주' 칸을 채우는 스크립트. 무한질주가 비공개인 동안은 꺼둔다.
-     (되살릴 때 이 주석만 풀면 된다. 켜면 시작화면 1회당 읽기 3회가 추가된다.)
+<!-- 명예의 전당의 '무한질주' 칸을 채우는 스크립트. 시작화면 1회당 읽기 3회가 추가된다.
+     끄려면 아래 두 줄을 주석으로 감싸면 된다. -->
 <script>window.CROSS_COLLECTION = 'endless';</script>
 <script src="assets/cross_top3.js?v=1"></script>
--->
 <!-- BGM 음소거 버튼 (배경음악만 끄고 점프/획득 효과음은 그대로 유지) -->
 <script src="assets/mute_btn.js?v=1"></script>
 </body>

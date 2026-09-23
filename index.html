@@ -67,6 +67,43 @@
     color:#9fb1d4;
     letter-spacing:.02em;
   }
+
+  /* ---- 시작 화면: 두 모드를 좌우로 나란히 ----
+     예전에는 "시작하기" 버튼 아래에 무한질주 링크가 따로 붙어 있었다. 두 모드를
+     같은 높이로 나란히 두면 고르는 느낌이 되고, 무한질주가 부가 기능처럼 보이지도
+     않는다. 왼쪽은 낮(파랑), 오른쪽은 밤(남색)으로 색을 갈라서 한눈에 구분된다.
+     #startBtn 의 id 는 game.js 가 잡으므로 절대 바꾸면 안 된다. */
+  .mode-row{
+    display:flex;
+    width:100%;
+    gap:8px;
+    align-items:stretch;
+  }
+  .mode-row > .mode-half{
+    flex:1 1 0;
+    min-width:0;
+    width:auto;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    padding:12px 6px;
+    text-align:center;
+    font-size:15px;
+    line-height:1.15;
+  }
+  .mode-row > .mode-half span{
+    display:block;
+    margin:0;
+    font-family:'Nunito',sans-serif;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:.01em;
+    line-height:1.25;
+    opacity:.85;
+  }
 </style>
 </head>
 <body>
@@ -139,9 +176,10 @@
           <div class="made-by" style="background:rgba(20,30,50,.34);color:rgba(255,255,255,.76);font-size:8px;letter-spacing:.03em;padding:3px 7px;">BGM: Claude AI</div>
         </div>
       </div>
-      <button class="primary" id="startBtn" type="button">시작하기</button>
-      <!-- 무한질주 모드 진입 버튼. 다시 숨기려면 이 줄을 주석으로 감싸면 된다. -->
-      <a class="mode-switch" href="endless.html">🌙 무한질주 (신규)<span>순위표 별도</span></a>
+      <div class="mode-row">
+        <button class="primary mode-half" id="startBtn" type="button">🐾 일반 모드<span>산책하고 클리어</span></button>
+        <a class="mode-switch mode-half" href="endless.html">🌙 무한질주<span>끝이 없음 · 순위 별도</span></a>
+      </div>
       <div class="leaderboard" id="top3Board">
         <div class="leaderboard-title">🏆 명예의 전당</div>
         <div class="hall-part">

@@ -146,6 +146,49 @@
     margin:auto;
   }
 
+  /* ---- 명예의 전당: 두 모드를 위아래로 나눠 보여준다 (본 게임과 동일한 방식) ----
+     무한질주 칸은 game.js가 채우고, 크림이 산책 칸은 assets/cross_top3.js 가 채운다.
+     게임오버 화면은 그대로 내 모드(무한질주)만 보여준다. */
+  .hall-part + .hall-part{
+    margin-top:10px;
+    padding-top:9px;
+    border-top:2px dashed var(--panel-border);
+  }
+  .hall-part-title{
+    font-family:'Baloo 2',sans-serif;
+    font-size:11.5px;
+    font-weight:800;
+    letter-spacing:.02em;
+    color:var(--ink-soft);
+    margin:0 0 4px;
+  }
+  .hall-part-title.night{ color:#3b4f86; }
+
+  /* ---- 본 게임으로 넘어가는 버튼 ---- */
+  .mode-switch{
+    display:block;
+    margin:8px 0 2px;
+    padding:9px 12px;
+    border-radius:12px;
+    border:2px solid #cdd8ee;
+    background:linear-gradient(180deg,#f7fbff,#e8f0fb);
+    color:#2f4a7d;
+    font-family:'Baloo 2',sans-serif;
+    font-size:14px;
+    font-weight:800;
+    text-decoration:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mode-switch span{
+    display:block;
+    margin-top:1px;
+    font-family:'Nunito',sans-serif;
+    font-size:10.5px;
+    font-weight:700;
+    color:#6b7c9c;
+    letter-spacing:.02em;
+  }
+
   /* 무한질주 표식 */
   .endless-tag{
     display:inline-block;
@@ -157,13 +200,6 @@
     font-size:11px;
     font-weight:800;
     letter-spacing:.04em;
-  }
-  .back-link{
-    display:block;
-    margin-top:6px;
-    color:#6b7c9c;
-    font-size:11px;
-    text-decoration:underline;
   }
 </style>
 </head>
@@ -260,15 +296,22 @@
       </div>
       <div class="endless-tag">🌙 무한질주 모드</div>
       <button class="primary" id="startBtn" type="button">시작하기</button>
+      <a class="mode-switch" href="./">🐕 크림이 산책<span>순위표 별도</span></a>
       <div class="leaderboard" id="top3Board">
-        <div class="leaderboard-title">🏆 TOP 3</div>
-        <ol class="leaderboard-list" id="top3List"></ol>
-        <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
+        <div class="leaderboard-title">🏆 명예의 전당</div>
+        <div class="hall-part">
+          <div class="hall-part-title">🐕 크림이 산책</div>
+          <ol class="leaderboard-list" id="crossTop3List"></ol>
+          <div class="leaderboard-empty" id="crossTop3Status">아직 기록이 없어요</div>
+        </div>
+        <div class="hall-part">
+          <div class="hall-part-title night">🌙 무한질주</div>
+          <ol class="leaderboard-list" id="top3List"></ol>
+          <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
+        </div>
       </div>
       <p class="hint">끝이 없습니다. 왕도 없습니다. 얼마나 버티나 겨뤄보세요.</p>
-      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.
-        <a class="back-link" href="./">← 크림이 산책(본 게임)으로 돌아가기</a>
-      </p>
+      <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
     </div>
   </div>
 
@@ -348,6 +391,10 @@
 
 <!-- BGM 음소거 버튼 (음악만 끄고 효과음은 유지) -->
 <script src="assets/mute_btn.js?v=1"></script>
+
+<!-- 명예의 전당의 '크림이 산책' 칸을 채운다. 실패해도 안내문만 남고 게임엔 영향 없다. -->
+<script>window.CROSS_COLLECTION = 'scores';</script>
+<script src="assets/cross_top3.js?v=1"></script>
 
 <!-- 밤하늘 별똥별 연출 (게임 로직과 무관, 터치도 그대로 통과) -->
 <script src="assets/night_fx.js?v=1"></script>

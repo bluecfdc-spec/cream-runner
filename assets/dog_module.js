@@ -149,8 +149,10 @@
   }
   function dogIsHazard(o){
     if (o.type === 'crow') return DOG_CATCH_CROW;
+    // 악마는 물지 않는다. 악마 패턴은 외워서 푸는 고정 패턴이라, 흑견이 중간에
+    // 치워버리면 패턴이 성립하지 않는다 (똥/까마귀는 그대로 다 잡는다).
     return o.type !== 'star' && o.type !== 'bonus' &&
-           o.type !== 'finalstroller' && o.type !== 'boss';
+           o.type !== 'finalstroller' && o.type !== 'boss' && o.type !== 'demon';
   }
   function dogCanReach(o){
     return ((o.elevation || 0) + (o.hop || 0) + dogLiftOf(o)) <= dogReach();

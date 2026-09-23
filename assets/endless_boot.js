@@ -20,6 +20,7 @@
 //         game.js 안쪽에 통째로 심는다
 //     12) 가족 복귀(라이프) 보너스를 내지 않는다
 //     13) 스크롤 속도 상한을 배수로 열어준다 (중력 상한은 game.js가 window로 읽는다)
+//  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
 //  바꿔치기할 문장을 game.js에서 정확히 한 군데도 못 찾거나 두 군데 이상 찾으면,
@@ -130,6 +131,45 @@
     });
   }
 
+  // ---- 장애물 그림 미리 받기 ------------------------------------------------
+  //  무한질주는 시작 즉시 중반 속도라, 첫 장애물이 화면에 들어오는 시점에 브라우저가
+  //  아직 그림 파일을 못 받아둔 상태일 수 있다. 그러면 판정은 살아 있는데 화면에는
+  //  아무것도 안 보이는 장애물이 지나가서, 보이지 않는 것에 부딪히게 된다. 실제로
+  //  "처음 시작할 때 장애물 1~3개가 깜빡이거나 안 보이다가 갑자기 나타난다"는 증상이
+  //  이것이었다. 본 게임은 아주 느리게 시작하니 그 사이에 다 받아져서 안 생긴다.
+  //  그래서 게임을 시작하기 전에(로딩 화면이 떠 있는 동안) 먼저 받아둔다.
+  //  캐릭터 그림은 data: 문자열로 들어 있어 네트워크를 타지 않으므로 대상이 아니다.
+  var PRELOAD = [
+    "assets/img_poop.png",
+    "assets/img_dog_a.png",
+    "assets/img_dog_b.png",
+    "assets/img_crow_up.png",
+    "assets/img_crow_down.png",
+    "assets/boss.webp",
+    "assets/img_stroller.png",
+    "assets/img_star_item.png"
+  ];
+  //  한 장이라도 느리면 게임이 안 시작되는 일이 없도록 상한 시간을 둔다. 상한을
+  //  넘기면 그냥 시작한다 (예전과 같은 상태가 되는 것이므로 더 나빠지지 않는다).
+  function preload(urls, capMs){
+    return new Promise(function(done){
+      var left = urls.length;
+      var timer = setTimeout(finish, capMs);
+      function finish(){
+        if (!timer) return;
+        clearTimeout(timer);
+        timer = null;
+        done(true);
+      }
+      if (!left) return finish();
+      for (var i = 0; i < urls.length; i++){
+        var im = new Image();
+        im.onload = im.onerror = function(){ if (--left <= 0) finish(); };
+        im.src = urls[i];
+      }
+    });
+  }
+
   function apply(src, find, rep, label){
     var parts = src.split(find);
     if (parts.length !== 2){
@@ -144,7 +184,8 @@
   Promise.all([
     grab(GAME_SRC, 50000, "game.js"),
     grab(DOG_SRC, 1000, "흑견 본체(dog_module.js)"),
-    grab(DEMON_SRC, 1000, "악마 패턴(demon_module.js)")
+    grab(DEMON_SRC, 1000, "악마 패턴(demon_module.js)"),
+    preload(PRELOAD, 4000)
   ]).then(function(got){
     var src = got[0], dog = got[1], demon = got[2];
 

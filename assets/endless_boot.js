@@ -18,6 +18,7 @@
 //     10) 악마 패턴 연결: 매 프레임 갱신을 끼워넣는다
 //     11) 흑견 본체(assets/dog_module.js)와 악마 패턴(assets/demon_module.js)을
 //         game.js 안쪽에 통째로 심는다
+//     12) 가족 복귀(라이프) 보너스를 내지 않는다
 //
 //  [안전장치]
 //  바꿔치기할 문장을 game.js에서 정확히 한 군데도 못 찾거나 두 군데 이상 찾으면,
@@ -78,7 +79,13 @@
     // 흑견은 악마 패턴의 똥과 까마귀까지 물어 없애므로, 악마만 볼 때는 dogtest 를 뺀다.
     { n: "테스트용 흑견 강제 소환",
       f: "      demonUpdate(dt);",
-      r: "      if (/[?&]demontest/.test(location.search) && /[?&]dogtest/.test(location.search) && !dogActive && !invincible) dogGauge = dogMax();\n      demonUpdate(dt);" }
+      r: "      if (/[?&]demontest/.test(location.search) && /[?&]dogtest/.test(location.search) && !dogActive && !invincible) dogGauge = dogMax();\n      demonUpdate(dt);" },
+    // 가족 복귀(라이프) 보너스를 내지 않는다. 무한질주는 끝이 없는 버티기 모드라,
+    // 잃은 목숨이 돌아오면 사실상 무한 플레이가 된다. 본 게임에는 영향이 없다
+    // (이 패치는 endless.html 에서만 적용된다).
+    { n: "라이프 보너스 차단",
+      f: "      if (!finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){",
+      r: "      if (!window.ENDLESS_NO_LIFE_BONUS && !finalPhase && lifeState < 3 && !bonusSpawned && bonusDueAt !== null && gameTime >= bonusDueAt){" }
   ];
 
   function fail(why){

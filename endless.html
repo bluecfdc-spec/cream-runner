@@ -146,9 +146,11 @@
     margin:auto;
   }
 
-  /* ---- 명예의 전당: 두 모드를 위아래로 나눠 보여준다 (본 게임과 동일한 방식) ----
-     무한질주 칸은 game.js가 채우고, 크림이 산책 칸은 assets/cross_top3.js 가 채운다.
-     게임오버 화면은 그대로 내 모드(무한질주)만 보여준다. */
+  /* ---- 명예의 전당 ----
+     이 페이지는 무한질주 순위만 보여준다. 그 아래에 assets/seasons.js 가
+     "👑 시즌 1위" 칸(무한질주 기준)을 붙인다. 크림이 산책 순위는 본 게임
+     랜딩에서 보여주므로 여기서는 빼두었다 — 모드별로 페이지가 갈리는 편이
+     순위표가 헷갈리지 않는다. */
   .hall-part + .hall-part{
     margin-top:10px;
     padding-top:9px;
@@ -300,15 +302,11 @@
       <div class="leaderboard" id="top3Board">
         <div class="leaderboard-title">🏆 명예의 전당</div>
         <div class="hall-part">
-          <div class="hall-part-title">🐕 크림이 산책</div>
-          <ol class="leaderboard-list" id="crossTop3List"></ol>
-          <div class="leaderboard-empty" id="crossTop3Status">아직 기록이 없어요</div>
-        </div>
-        <div class="hall-part">
           <div class="hall-part-title night">🌙 무한질주</div>
           <ol class="leaderboard-list" id="top3List"></ol>
           <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
         </div>
+        <!-- 여기 아래로 assets/seasons.js 가 "👑 시즌 1위" 칸을 붙인다. -->
       </div>
       <p class="hint">끝이 없습니다. 왕도 없습니다. 얼마나 버티나 겨뤄보세요.</p>
       <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
@@ -395,9 +393,11 @@
 <!-- 우리 편 흑견 그림 (장애물 쥐 그림과 별개). 게이지 바 아이콘도 이 파일이 맞춰준다. -->
 <script src="assets/ally_dog_img.js?v=1"></script>
 
-<!-- 명예의 전당의 '크림이 산책' 칸을 채운다. 실패해도 안내문만 남고 게임엔 영향 없다. -->
-<script>window.CROSS_COLLECTION = 'scores';</script>
-<script src="assets/cross_top3.js?v=1"></script>
+<!-- 명예의 전당 아래의 "👑 시즌 1위" 칸. endless_tune.js 뒤에 와야 무한질주 기준으로
+     그린다 (ENDLESS_MODE 로 판단한다). 데이터 파일이 먼저 와야 한다.
+     새 시즌을 추가할 때는 assets/seasons_data.js 만 고치면 된다. -->
+<script src="assets/seasons_data.js?v=1"></script>
+<script src="assets/seasons.js?v=1"></script>
 
 <!-- 밤하늘 별똥별 연출 (게임 로직과 무관, 터치도 그대로 통과) -->
 <script src="assets/night_fx.js?v=1"></script>

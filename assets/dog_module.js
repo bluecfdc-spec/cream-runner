@@ -1,23 +1,25 @@
   /* ===================== 흑견 (무한질주 전용) =====================
-     유모차 무적이 끝난 뒤 장애물을 DOG_AFTER_INV 개 더 넘기면 흑견이 우리 편으로
-     등장한다. 크림이 옆에서 같이 달리다가, 닿을 수 있는 장애물이 앞에 오면 총알처럼
-     튀어나가 물어서 없애고 다시 돌아온다. 5마리를 잡으면 오른쪽으로 달려나가 퇴장.
+     크림이 혼자 남았을 때(마지막 목숨)부터 흑견 게이지가 차기 시작한다. 그 전에는
+     한 칸도 오르지 않는다. 다 차면 흑견이 우리 편으로 등장해서, 크림이 옆에서 같이
+     달리다가 닿을 수 있는 장애물이 앞에 오면 총알처럼 튀어나가 물어서 없애고 다시
+     돌아온다. 5마리를 잡으면 오른쪽으로 달려나가 퇴장.
 
-     [소환 조건을 게이지 배수에서 바꾼 이유]
-     예전에는 흑견 게이지가 유모차 게이지의 정해진 배수만큼 차면 나왔다. 그런데 두
-     게이지가 같은 회피로 함께 차기 때문에, 배수를 어떻게 잡아도 유모차가 터지는
-     순간과 주기적으로 겹쳤다. 그래서 기준을 시점으로 바꿨다. "무적이 끝나는 순간"을
-     잡아서 거기서부터 장애물을 세고, 정해진 개수를 넘기면 소환한다. 이러면 겹칠
-     수가 구조적으로 없고, 플레이어 입장에서는 유모차 -> 몇 개 -> 흑견 순서가
-     항상 일정하게 느껴진다.
+     [소환 조건]
+     - 마지막 목숨(lifeState 1, 크림이 혼자)이 되는 순간부터 충전 시작. 그 순간
+       게이지를 0으로 맞추고 거기서부터 센다.
+     - 충전 속도는 유모차의 1/3 (유모차 한 칸 찰 동안 흑견은 1/3칸).
+       회피 이벤트 자체는 유모차와 같은 것을 쓰지만, 필요한 양이 3배라 속도가 1/3이 된다.
+     - 유모차 무적 중에는 소환하지 않는다. 다 찼어도 무적이 끝날 때까지 기다린다.
+     - 가족이 남아 있는 동안에는 흑견이 아예 안 나온다. "혼자 남았을 때 도와주러
+       오는 친구"라는 규칙이다.
 
      - 나갈 때(dash)와 돌아올 때(back) 모두 문다. 돌진만 물게 했더니, 왕복 0.4초 동안
        나머지 장애물이 흑견 뒤로 지나가버려서 "한 마리만 잡고 가만히 있는" 일이 생겼다
        (장애물이 촘촘한 천장 속도에서 특히). 돌아오는 길에도 쓸고 오면 뭉쳐 나온
        장애물을 제대로 정해진 마리 수까지 처리한다.
 
-     - 유모차 무적과 절대 겹치지 않는다. 애초에 무적이 끝난 뒤부터 세기 시작하고,
-       소환 직전에 무적 여부를 한 번 더 확인한다.
+     - 유모차 무적과 겹치지 않는다. 소환 직전에 무적 여부를 확인하고, 무적 중이면
+       끝날 때까지 기다린다.
      - 까마귀는 "보이는 높이"가 흑견의 점프 높이 안에 들어왔을 때만 문다. 까마귀는 멀리서
        높이 떠 있다가 크림이 앞에서 급강하하므로, 자연스럽게 최저점 근처에서 잡히게 된다.
      - 까마귀를 물 때는 그 높이까지 뛰어오른다. 뛰는 동안에는 달리기 프레임 애니메이션을
@@ -32,8 +34,10 @@
   var DOG_ALLY_ON     = !!window.ENDLESS_MODE;
   var DOG_KO_SCORE    = window.ENDLESS_DOG_SCORE || 150;
   var DOG_KILLS_MAX   = window.ENDLESS_DOG_KILLS || 5;
-  //  유모차 무적이 끝난 뒤 몇 개를 더 넘기면 흑견이 나오는지.
-  var DOG_AFTER_INV   = window.ENDLESS_DOG_AFTER_INV || 4;
+  //  유모차 게이지의 몇 배가 필요한지. 3 = 유모차의 1/3 속도로 찬다.
+  var DOG_GAUGE_MULT  = window.ENDLESS_DOG_GAUGE_MULT || 3;
+  //  이 목숨 상태부터 충전이 시작된다. 1 = 크림이 혼자 남았을 때.
+  var DOG_LIFE_GATE   = window.ENDLESS_DOG_LIFE_GATE || 1;
   var DOG_REACH_MULT  = window.ENDLESS_DOG_REACH || 2.0;
   var DOG_DASH_MULT   = window.ENDLESS_DOG_DASH || 2.4;
   var DOG_BACK_MULT   = window.ENDLESS_DOG_BACK || 3.2;
@@ -48,8 +52,7 @@
   var DOG_LEAP_EASE   = 12;
 
   var dogGauge = 0, dogActive = false, dogKills = 0;
-  var dogArmed = false;     // 무적이 끝나서 이제 장애물을 세고 있는지
-  var dogPrevInv = false;   // 지난 프레임의 무적 상태 (끝나는 순간을 잡기 위해)
+  var dogPrevLife = null;   // 지난 프레임의 목숨 상태 (혼자 남는 순간을 잡기 위해)
   var dogPhase = 'escort';           // escort(동행) | dash(돌진) | back(복귀) | exit(퇴장)
   var dogX = 0, dogY = 0, dogEl = null;
   var dogFrameA = null, dogFrameB = null;   // 프레임 고정용
@@ -57,7 +60,7 @@
   var dogFillEl  = document.getElementById('dogFill');
   var dogRiderEl = document.getElementById('dogRider');
 
-  function dogMax(){ return DOG_AFTER_INV; }
+  function dogMax(){ return currentGaugeMax() * DOG_GAUGE_MULT; }
   function dogHeight(){ return DOG_H * 1.15; }
   function dogWidth(){ return dogHeight() * DOG_ASPECT; }
   // 크림이 '앞'(오른쪽)에 붙어서 같이 달린다. 거기서 앞으로 튀어나간다.
@@ -72,10 +75,12 @@
     if (dogRiderEl) dogRiderEl.style.left = Math.max(3, Math.min(97, pct)) + '%';
   }
 
-  // addGaugeDodge 에서 유모차 게이지와 같은 타이밍에 불린다. 단, 무적이 한 번
-  // 끝난 뒤(dogArmed)부터만 센다. 그 전에는 흑견 게이지가 아예 오르지 않는다.
+  // addGaugeDodge 에서 유모차 게이지와 같은 타이밍에 불린다. 단, 크림이 혼자
+  // 남기 전에는 한 칸도 올리지 않는다. 필요한 양이 유모차의 DOG_GAUGE_MULT 배라
+  // 결과적으로 충전 속도가 1/DOG_GAUGE_MULT 가 된다.
   function dogAddDodge(){
-    if (!DOG_ALLY_ON || dogActive || !dogArmed) return;
+    if (!DOG_ALLY_ON || dogActive) return;
+    if (lifeState > DOG_LIFE_GATE) return;
     if (dogGauge < dogMax()) dogGauge++;
     dogUI();
   }
@@ -149,8 +154,7 @@
 
   function dogReset(){
     dogGauge = 0;
-    dogArmed = false;
-    dogPrevInv = false;
+    dogPrevLife = null;
     dogRetire();
   }
 
@@ -213,19 +217,17 @@
   function dogUpdate(dt){
     if (!DOG_ALLY_ON || state !== 'playing') return;
 
-    // 유모차 무적이 "끝나는 순간"을 잡아서 그때부터 장애물을 센다. 이러면 흑견이
-    // 무적과 겹칠 수가 없다.
-    if (dogPrevInv && !invincible && !dogActive){
-      dogArmed = true;
+    // 크림이 혼자 남는 "그 순간"을 잡아서 게이지를 0에서 다시 시작한다.
+    if (dogPrevLife !== null && dogPrevLife > DOG_LIFE_GATE && lifeState <= DOG_LIFE_GATE){
       dogGauge = 0;
       dogUI();
     }
-    dogPrevInv = invincible;
+    dogPrevLife = lifeState;
 
     if (!dogActive){
-      if (dogArmed && dogGauge >= dogMax() && !invincible){
+      // 다 찼어도 유모차 무적 중이면 끝날 때까지 기다린다 (겹침 방지).
+      if (lifeState <= DOG_LIFE_GATE && dogGauge >= dogMax() && !invincible){
         dogGauge = 0;
-        dogArmed = false;
         dogSummon();
       }
       return;

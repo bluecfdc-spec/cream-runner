@@ -25,6 +25,16 @@
        이미지가 늦게 뜨거나 실패했을 때 낮하늘이 번쩍이지 않도록 밤색으로 둔다. */
     --sky-top:#16224a;
     --sky-bottom:#2b3a6b;
+
+    /* ---- 카드(창) 색을 밤으로 ----
+       시작/게임오버 화면의 카드는 style.css 에서 --panel(크림색)을 쓴다. 낮 모드와
+       똑같은 크림 카드가 뜨면 하드모드에 들어온 게 눈에 안 띄어서, 여기서 남색으로
+       덮는다. 글자색(--ink)도 같이 밝게 바꿔야 읽힌다.
+       흰 배경을 그대로 쓰는 요소(이름 입력칸)는 아래에서 따로 되돌려 놓는다. */
+    --panel:#17224d;
+    --panel-border:#33447e;
+    --ink:#eaf0ff;
+    --ink-soft:#a9b9dc;
   }
 
   /* 상단 하늘: 짙은 남색 -> 지평선 쪽은 살짝 보랏빛 */
@@ -129,9 +139,22 @@
     50%    { opacity:.95; }
   }
 
-  /* 순위표에서 클리어 배지는 무한질주에 쓰이지 않지만, 본 게임과 스타일을 맞춰둔다. */
+  /* ---- 남색 카드 위에서 읽히도록 되돌리는 것들 ----
+     style.css 는 낮 기준이라 흰 배경/진한 글씨를 전제한 곳이 몇 군데 있다. */
+  .leaderboard{
+    background:rgba(9,15,38,.55);
+    border-color:#33447e;
+  }
+  /* 이름 입력칸은 흰 배경을 그대로 쓰므로 글자색만 진하게 되돌린다.
+     안 그러면 밝아진 --ink 를 물려받아 흰 바탕에 흰 글씨가 된다. */
+  #nameInput{
+    color:#233047;
+  }
+  /* 점수 강조 숫자는 낮의 진한 금색이라 남색 위에서 어둡다. 밝은 금색으로. */
+  .scoreline .value{ color:#ffd98a; }
+  /* 클리어 배지는 무한질주에 쓰이지 않지만, 혹시 표시될 때 남색 위에서 읽히게 둔다. */
   .leaderboard-list .lb-name:has(.lb-clear){
-    color:#1d63c8;
+    color:#ffd98a;
     font-weight:800;
   }
 
@@ -164,9 +187,9 @@
     color:var(--ink-soft);
     margin:0 0 4px;
   }
-  .hall-part-title.night{ color:#3b4f86; }
+  .hall-part-title.night{ color:#8fa2d8; }
 
-  /* ---- 본 게임으로 넘어가는 버튼 ---- */
+  /* ---- 일반 모드로 돌아가는 버튼 (밤 카드 위이므로 밝은 색) ---- */
   .mode-switch{
     display:block;
     margin:8px 0 2px;
@@ -191,17 +214,57 @@
     letter-spacing:.02em;
   }
 
-  /* 무한질주 표식 */
-  .endless-tag{
-    display:inline-block;
-    margin:0 0 4px;
-    padding:3px 10px;
-    border-radius:999px;
-    background:linear-gradient(135deg,#243a72,#3b2a63);
-    color:#ffe9b0;
-    font-size:11px;
-    font-weight:800;
-    letter-spacing:.04em;
+  /* ---- 시작 화면: 두 모드를 좌우로 나란히 (본 게임과 좌우만 반대) ----
+     왼쪽이 이 페이지의 시작 버튼(무한질주), 오른쪽이 일반 모드로 돌아가는 버튼이다.
+     예전에는 "🌙 무한질주 모드" 라는 표시만 붙어 있어서, 한 번 들어오면 일반으로
+     돌아갈 방법이 눈에 안 띄었다.
+     #startBtn 의 id 는 game.js 가 잡으므로 절대 바꾸면 안 된다.
+
+     ★ style.css 의 #startBtn { margin-bottom:14px } 를 반드시 눌러야 한다 ★
+     ID 선택자라 클래스 규칙으로는 못 이긴다. 그냥 두면 flex 가 잡은 줄 높이에서
+     왼쪽 버튼만 자기 아래 여백을 빼고 차지해서 오른쪽보다 짧아 보인다. */
+  .mode-row{
+    display:flex;
+    width:100%;
+    gap:8px;
+    align-items:stretch;
+    margin:0 0 14px;
+  }
+  .mode-row > .mode-half{
+    flex:1 1 0;
+    min-width:0;
+    width:auto;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    min-height:62px;
+    padding:10px 6px;
+    border-width:3px;
+    border-radius:16px;
+    text-align:center;
+    font-size:15px;
+    line-height:1.15;
+  }
+  .mode-row > #startBtn.mode-half{
+    margin:0;
+    padding:10px 6px;
+    font-size:15px;
+  }
+  .mode-row > .mode-half span{
+    display:block;
+    margin:0;
+    font-family:'Nunito',sans-serif;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:.01em;
+    line-height:1.25;
+    opacity:.85;
+  }
+  .mode-row > a.mode-half{
+    box-shadow:0 5px 0 rgba(0,0,0,.28), inset 0 2px 0 rgba(255,255,255,.55);
   }
 </style>
 </head>
@@ -296,9 +359,10 @@
           <div class="made-by" style="background:rgba(20,30,50,.34);color:rgba(255,255,255,.76);font-size:8px;letter-spacing:.03em;padding:3px 7px;">BGM: Claude AI</div>
         </div>
       </div>
-      <div class="endless-tag">🌙 무한질주 모드</div>
-      <button class="primary" id="startBtn" type="button">시작하기</button>
-      <a class="mode-switch" href="./">🐕 크림이 산책<span>순위표 별도</span></a>
+      <div class="mode-row">
+        <button class="primary mode-half" id="startBtn" type="button">🌙 무한질주<span>끝이 없음 · 하드</span></button>
+        <a class="mode-switch mode-half" href="./">🐾 일반 모드<span>산책하고 클리어</span></a>
+      </div>
       <div class="leaderboard" id="top3Board">
         <div class="leaderboard-title">🏆 명예의 전당</div>
         <div class="hall-part">

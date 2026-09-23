@@ -21,6 +21,7 @@
 //     12) 가족 복귀(라이프) 보너스를 내지 않는다
 //     13) 스크롤 속도 상한을 배수로 열어준다 (중력 상한은 game.js가 window로 읽는다)
 //      5) 안에서 시작 목숨 상태도 정한다 (무한질주는 크림이 혼자부터 시작)
+//  14~16) 쥐/까마귀 판정 박스를 줄이고, 까마귀 그림과 판정의 어긋남을 없앤다
 //  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
@@ -95,7 +96,28 @@
     // (GRAVITY_CAP_MULT, game.js 가 이미 window 로 읽는다)도 같이 올려야 한다.
     { n: "속도 상한 배수",
       f: "    MAX_SPEED = Math.max(360, appW * 0.9 * 1.05);",
-      r: "    MAX_SPEED = Math.max(360, appW * 0.9 * 1.05) * (window.ENDLESS_SPEED_CAP_MULT || 1);" }
+      r: "    MAX_SPEED = Math.max(360, appW * 0.9 * 1.05) * (window.ENDLESS_SPEED_CAP_MULT || 1);" },
+    // ---- 쥐와 까마귀의 판정 박스 -------------------------------------------
+    //  game.js 는 똥에만 판정 축소값(hitTop 0.72 / hitSide 0.18)을 주고, 쥐와 까마귀는
+    //  기본값(hitSide 0.08, hitTop 없음 = 세로 100%)으로 둔다. 즉 쥐/까마귀는 그림
+    //  세로 전체가 판정이라 똥보다 훨씬 엄격했다. 그 두 개에도 조절값을 붙인다.
+    //  값은 assets/tune.js 에서 정한다. 값을 안 주면 예전 그대로 동작한다.
+    { n: "쥐 판정 박스",
+      f: "      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED, hop: 0, hops: hardMode() });",
+      r: "      obstacles.push({ el: el, x: x, w: dw, h: dh, elevation: 0, type: type, extraSpeed: DOG_EXTRA_SPEED, hop: 0, hops: hardMode(),\n        hitTop: (window.MOUSE_HIT_TOP_FRAC || 1),\n        hitSide: (window.MOUSE_HIT_SIDE_FRAC == null ? 0.08 : window.MOUSE_HIT_SIDE_FRAC) });" },
+    { n: "까마귀 판정 박스",
+      f: "      obstacles.push({ el: el, x: x, w: crw, h: crh, elevation: 0, type: type });",
+      r: "      obstacles.push({ el: el, x: x, w: crw, h: crh, elevation: 0, type: type,\n        hitTop: (window.CROW_HIT_TOP_FRAC || 1),\n        hitSide: (window.CROW_HIT_SIDE_FRAC == null ? 0.08 : window.CROW_HIT_SIDE_FRAC) });" },
+    // ---- 까마귀 연출과 판정의 어긋남 ---------------------------------------
+    //  까마귀는 그림만 위로 띄우고 판정은 땅에 고정한다 (판정이 움직이면 언제 눌러야
+    //  하는지 알 수 없어지므로 의도된 설계다). 문제는 그림이 0으로 내려오는 지점이
+    //  charLeftPx, 즉 캐릭터 판정보다 뒤쪽이라는 것이다. 그래서 겹쳐 있는 내내 그림이
+    //  판정보다 위에 떠 있었다 - 실측 최대 15.1px, 까마귀 몸통의 3분의 1이다.
+    //  ("머리에 닿지도 않았는데 죽는" 느낌의 진짜 원인)
+    //  기준점을 캐릭터 판정 쪽으로 옮기면 어긋남이 3.5px 로 줄어든다.
+    { n: "까마귀 연출 기준점",
+      f: "          var crowDist = Math.abs(o.x - charLeftPx);",
+      r: "          var crowDist = Math.abs(o.x - (charLeftPx + (window.CROW_ARC_ANCHOR_CW || 0) * character.offsetWidth));" }
   ];
 
   function fail(why){

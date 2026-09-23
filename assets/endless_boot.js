@@ -15,7 +15,9 @@
 //      6) BGM 무한 반복 -> 마지막 곡이 끝나지 않으므로 왕(보스)이 등장하지 않는다
 //      7) 순위표를 endless 컬렉션으로 분리
 //    8~9) 흑견 연결: 회피 게이지 충전과 매 프레임 갱신을 끼워넣는다
-//     10) 흑견 본체(assets/dog_module.js)를 game.js 안쪽에 통째로 심는다
+//     10) 악마 패턴 연결: 매 프레임 갱신을 끼워넣는다
+//     11) 흑견 본체(assets/dog_module.js)와 악마 패턴(assets/demon_module.js)을
+//         game.js 안쪽에 통째로 심는다
 //
 //  [안전장치]
 //  바꿔치기할 문장을 game.js에서 정확히 한 군데도 못 찾거나 두 군데 이상 찾으면,
@@ -31,6 +33,8 @@
   var GAME_SRC   = "game.js?v=12";
   // 흑견 본체. 따로 둔 이유는 그냥 읽고 고칠 수 있게 하기 위해서다.
   var DOG_SRC    = "assets/dog_module.js?v=1";
+  // 악마 패턴 본체. 최고 속도에 도달한 뒤에만 동작한다.
+  var DEMON_SRC  = "assets/demon_module.js?v=1";
   // game.js 실행이 끝난 뒤에 붙일 순위표 파일 (game.js보다 먼저 실행되면 안 된다)
   var AFTER_SRC  = "assets/lb_endless.js?v=1";
   // 흑견 본체를 끼워넣을 자리. game.js 안에서 딱 한 번 나오는 문장이어야 한다.
@@ -51,7 +55,7 @@
       r: "      if (window.ENDLESS_MAX_MULT && speedMultiplier > window.ENDLESS_MAX_MULT) speedMultiplier = window.ENDLESS_MAX_MULT;\n      var waveFactor = 1 + SPEED_WAVE_AMPLITUDE * Math.sin((gameTime / SPEED_WAVE_PERIOD) * Math.PI * 2);" },
     { n: "시작 배수",
       f: "    if (TEST_MODE){\n      gameTime = TEST_START_SEC;\n      musicRampProgress = 1; // 음악 램프는 이미 다 적용된 상태\n      speedMultiplier = multiplierAtSecond(TEST_START_SEC);\n      lastLevelTime = gameTime;\n      lastLevelCount = 0;\n    }\n",
-      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n    dogReset();   // 흑견 상태도 초기화\n" },
+      r: "    // 무한질주: 중반 속도에서 바로 시작한다. gameTime까지 옮겨야 까마귀/쥐 같은\n    // 장애물 해금이 본 게임과 동일하게 이어진다.\n    gameTime = window.ENDLESS_START_SEC || 140;\n    musicRampProgress = 1; // 음악 램프는 시작 배수에 이미 포함돼 있다\n    speedMultiplier = window.ENDLESS_START_MULT || 3.6;\n    lastLevelTime = gameTime;\n    lastLevelCount = 0;\n    dogReset();   // 흑견 상태도 초기화\n    demonReset(); // 악마 패턴 타이머도 초기화\n" },
     { n: "BGM 무한반복(=보스 제거)",
       f: "      bgmPlayTrack(bgmQueue[0], { instant: true });",
       r: "      bgmPlayTrack(bgmQueue[0], { instant: true, loop: true });" },
@@ -63,7 +67,11 @@
       r: "    dodgeGauge++;\n    dogAddDodge();   // 흑견 게이지도 같은 회피로 함께 찬다" },
     { n: "흑견 매 프레임 갱신",
       f: "      score += dt * 12;",
-      r: "      dogUpdate(dt);\n      score += dt * 12;" }
+      r: "      dogUpdate(dt);\n      score += dt * 12;" },
+    // 아래 패치가 찾는 문장은 바로 위 패치가 만들어낸 것이다. 순서를 바꾸면 안 된다.
+    { n: "악마 패턴 매 프레임 갱신",
+      f: "      dogUpdate(dt);",
+      r: "      dogUpdate(dt);\n      demonUpdate(dt);" }
   ];
 
   function fail(why){
@@ -113,16 +121,18 @@
 
   Promise.all([
     grab(GAME_SRC, 50000, "game.js"),
-    grab(DOG_SRC, 1000, "흑견 본체(dog_module.js)")
+    grab(DOG_SRC, 1000, "흑견 본체(dog_module.js)"),
+    grab(DEMON_SRC, 1000, "악마 패턴(demon_module.js)")
   ]).then(function(got){
-    var src = got[0], dog = got[1];
+    var src = got[0], dog = got[1], demon = got[2];
 
     for (var i = 0; i < PATCHES.length; i++){
       src = apply(src, PATCHES[i].f, PATCHES[i].r, PATCHES[i].n);
     }
-    // 흑견 본체를 game.js 안쪽(같은 클로저)에 심는다. 그래야 obstacles/score 같은
-    // 게임 내부 변수에 접근할 수 있다.
-    src = apply(src, DOG_ANCHOR, dog + "\n" + DOG_ANCHOR, "흑견 본체 삽입 위치");
+    // 흑견 본체와 악마 패턴을 game.js 안쪽(같은 클로저)에 심는다. 그래야
+    // obstacles/score 같은 게임 내부 변수에 접근할 수 있다.
+    src = apply(src, DOG_ANCHOR, dog + "\n" + demon + "\n" + DOG_ANCHOR,
+                "흑견/악마 본체 삽입 위치");
 
     // 개발자 도구에서 이 코드가 어느 파일인지 알아볼 수 있게 이름을 붙인다.
     src += "\n//# sourceURL=endless-game.js\n";

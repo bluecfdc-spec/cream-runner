@@ -23,7 +23,8 @@
 //      5) 안에서 시작 목숨 상태도 정한다 (무한질주는 크림이 혼자부터 시작)
 //  14~16) 쥐/까마귀 판정 박스를 줄이고, 까마귀 그림과 판정의 어긋남을 없앤다
 //     17) 효과음을 밖에서 깨우고/음소거할 수 있게 손잡이를 내보낸다
-//     18) 저장해둔 효과음 음소거 설정이 게임을 다시 시작해도 유지되게 한다
+//     18) 효과음 장치가 만들어졌다고 알린다 (iOS 오디오 세션 붙잡기용)
+//     19) 저장해둔 효과음 음소거 설정이 게임을 다시 시작해도 유지되게 한다
 //  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
@@ -157,7 +158,23 @@
          "        sfxGain.gain.value = (window.__creamSfxVol == null ? 0.6 : window.__creamSfxVol);\n" +
          "      }\n" +
          "    } catch (e) {}\n" +
+         "  };\n" +
+         "  window.__creamRebuildAudio = function(){\n" +
+         "    try {\n" +
+         "      if (audioCtx && audioCtx.close){ try { audioCtx.close(); } catch (e) {} }\n" +
+         "      audioCtx = null; masterGain = null; sfxGain = null;\n" +
+         "      ensureAudio();\n" +
+         "    } catch (e) {}\n" +
          "  };" },
+    // ---- 효과음 장치가 만들어졌다고 알린다 -----------------------------------
+    //  assets/audio_wake.js 가 이 알림을 받아서, 들리지 않는 아주 작은 소리를 계속
+    //  흘려보내 iOS 의 오디오 세션이 내려가지 않게 붙잡는다. 그게 "BGM 을 끄면 효과음도
+    //  같이 죽는" 문제의 진짜 해결책이다 (자세한 설명은 그 파일 머리주석 참고).
+    //  장치를 새로 만들 때도 다시 불리므로, 그때 붙잡기도 새 장치에 다시 걸린다.
+    { n: "효과음 장치 알림",
+      f: "      sfxGain.connect(masterGain);",
+      r: "      sfxGain.connect(masterGain);\n" +
+         "      try { if (window.__creamAudioReady) window.__creamAudioReady(audioCtx, masterGain, sfxGain); } catch (e) {}" },
     // ---- 효과음 음소거를 계속 유지 -------------------------------------------
     //  효과음 장치(sfxGain)는 게임을 처음 시작할 때 만들어지고, game.js 는 만들면서
     //  0.6 을 넣는다. 그때 사용자가 저장해둔 음소거 설정을 보게 해야, 페이지를 새로

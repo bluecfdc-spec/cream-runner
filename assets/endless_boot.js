@@ -72,12 +72,13 @@
     { n: "악마 패턴 매 프레임 갱신",
       f: "      dogUpdate(dt);",
       r: "      dogUpdate(dt);\n      demonUpdate(dt);" },
-    // 주소에 ?dogtest 가 붙었을 때만 흑견을 계속 소환한다. 흑견은 악마 패턴의 똥과
-    // 까마귀까지 물어 없애버리므로, 악마를 볼 때는 이 플래그를 빼야 한다. 그래서
-    // ?demontest 와 따로 두었다. 플래그가 없으면 이 줄은 아무 일도 하지 않는다.
+    // 흑견을 계속 소환한다. ?demontest 와 ?dogtest 가 "둘 다" 있어야 켜진다.
+    // dogtest 만으로 켜지게 두면, 운영 주소에 ?dogtest 를 붙여서 무한 흑견으로 점수를
+    // 올릴 수 있다 (점수 컬렉션 우회는 demontest 에만 걸려 있다). 그래서 둘 다 요구한다.
+    // 흑견은 악마 패턴의 똥과 까마귀까지 물어 없애므로, 악마만 볼 때는 dogtest 를 뺀다.
     { n: "테스트용 흑견 강제 소환",
       f: "      demonUpdate(dt);",
-      r: "      if (/[?&]dogtest/.test(location.search) && !dogActive && !invincible) dogGauge = dogMax();\n      demonUpdate(dt);" }
+      r: "      if (/[?&]demontest/.test(location.search) && /[?&]dogtest/.test(location.search) && !dogActive && !invincible) dogGauge = dogMax();\n      demonUpdate(dt);" }
   ];
 
   function fail(why){

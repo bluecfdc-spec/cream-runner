@@ -25,9 +25,11 @@
     margin:auto;
   }
 
-  /* ---- 명예의 전당: 두 모드를 위아래로 나눠 보여준다 ----
-     위 칸(크림이 산책)은 game.js가 채우고, 아래 칸(무한질주)은
-     assets/cross_top3.js 가 채운다. 게임오버 화면은 그대로 내 모드만 보여준다. */
+  /* ---- 명예의 전당 ----
+     각 페이지는 자기 모드만 보여준다. 일반 랜딩은 🐾 크림이 산책, 무한질주 랜딩은
+     🌙 무한질주. 그 아래에 assets/seasons.js 가 "👑 시즌 1위" 칸을 붙인다.
+     (예전에는 한 페이지에 두 모드를 같이 올렸는데, 모드별로 페이지가 갈리는 편이
+      순위표가 헷갈리지 않는다) */
   .hall-part + .hall-part{
     margin-top:10px;
     padding-top:9px;
@@ -202,11 +204,7 @@
           <ol class="leaderboard-list" id="top3List"></ol>
           <div class="leaderboard-empty" id="top3Status">불러오는 중...</div>
         </div>
-        <div class="hall-part">
-          <div class="hall-part-title night">🌙 무한질주</div>
-          <ol class="leaderboard-list" id="crossTop3List"></ol>
-          <div class="leaderboard-empty" id="crossTop3Status">아직 기록이 없어요</div>
-        </div>
+        <!-- 여기 아래로 assets/seasons.js 가 "👑 시즌 1위" 칸을 붙인다. -->
       </div>
       <p class="hint">스페이스바 또는 아래 점프 버튼! 두 번 누르면 2단 점프</p>
       <p class="credit">AI로 제작되었으며, 비영리로 운영됩니다.</p>
@@ -361,10 +359,11 @@
 <!-- 순위표 추가 기능(전체 순위 보기 / 100위 등록 허용). game.js 뒤에 와야 한다.
      이 줄을 지우면 예전 동작으로 그대로 돌아간다. -->
 <script src="assets/lb_extra.js?v=1"></script>
-<!-- 명예의 전당의 '무한질주' 칸을 채우는 스크립트. 시작화면 1회당 읽기 3회가 추가된다.
-     끄려면 아래 두 줄을 주석으로 감싸면 된다. -->
-<script>window.CROSS_COLLECTION = 'endless';</script>
-<script src="assets/cross_top3.js?v=1"></script>
+<!-- 명예의 전당 아래의 "👑 시즌 1위" 칸. 데이터 파일이 먼저 와야 한다.
+     새 시즌을 추가할 때는 assets/seasons_data.js 만 고치면 된다.
+     Firestore 를 읽지 않으므로 순위표 읽기 횟수는 늘지 않는다. -->
+<script src="assets/seasons_data.js?v=1"></script>
+<script src="assets/seasons.js?v=1"></script>
 <!-- BGM 음소거 버튼 (배경음악만 끄고 점프/획득 효과음은 그대로 유지) -->
 <script src="assets/mute_btn.js?v=1"></script>
 </body>

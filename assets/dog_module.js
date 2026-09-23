@@ -3,6 +3,11 @@
      크림이 옆에서 같이 달리다가, 닿을 수 있는 장애물이 앞에 오면 총알처럼
      튀어나가 물어서 없애고 다시 돌아온다. 3마리를 잡으면 오른쪽으로 달려나가 퇴장.
 
+     - 나갈 때(dash)와 돌아올 때(back) 모두 문다. 돌진만 물게 했더니, 왕복 0.4초 동안
+       나머지 장애물이 흑견 뒤로 지나가버려서 "한 마리만 잡고 가만히 있는" 일이 생겼다
+       (장애물이 촘촘한 천장 속도에서 특히). 돌아오는 길에도 쓸고 오면 뭉쳐 나온
+       장애물을 제대로 3마리까지 처리한다.
+
      - 유모차 무적과 절대 겹치지 않는다. 게이지가 다 찼어도 무적 중이면 끝날 때까지 기다린다.
        (흑견 게이지가 유모차의 2배라 둘이 정확히 같은 순간에 차오르기 때문에 꼭 필요하다.)
      - 까마귀는 "보이는 높이"가 흑견의 점프 높이 안에 들어왔을 때만 문다. 까마귀는 멀리서
@@ -225,7 +230,13 @@
 
     } else if (dogPhase === 'back'){
       dogX -= (speed * DOG_BACK_MULT + 260) * dt;
-      if (dogX <= home){ dogX = home; dogPhase = 'escort'; }
+      // 돌아오는 길에도 문다. 뭉쳐 나온 장애물을 놓치지 않으려면 이게 필요하다.
+      var hitBack = dogHitIndex();
+      if (hitBack >= 0){
+        dogBite(hitBack);
+        if (dogKills >= DOG_KILLS_MAX){ dogPhase = 'exit'; }
+      }
+      if (dogPhase === 'back' && dogX <= home){ dogX = home; dogPhase = 'escort'; }
 
     } else { // exit - 임무 완수하고 오른쪽으로 달려나간다
       dogX += (speed * DOG_DASH_MULT + 420) * dt;

@@ -25,6 +25,7 @@
 //     17) 효과음을 밖에서 깨우고/음소거할 수 있게 손잡이를 내보낸다
 //     18) 효과음 장치가 만들어졌다고 알린다 (iOS 오디오 세션 붙잡기용)
 //     19) 저장해둔 효과음 음소거 설정이 게임을 다시 시작해도 유지되게 한다
+//     20) 추가 장애물 패턴(똥쥐똥 / 똥똥)을 장애물 생성부에 연결한다
 //  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
@@ -43,6 +44,8 @@
   var DOG_SRC    = "assets/dog_module.js?v=1";
   // 악마 패턴 본체. 최고 속도에 도달한 뒤에만 동작한다.
   var DEMON_SRC  = "assets/demon_module.js?v=1";
+  // 추가 장애물 패턴 본체 (똥쥐똥 / 똥똥). 일반 모드와 같은 파일을 쓴다.
+  var PAT_SRC    = "assets/pattern_module.js?v=1";
   // game.js 실행이 끝난 뒤에 붙일 파일들 (game.js보다 먼저 실행되면 안 된다)
   //   lb_endless.js   순위표
   //   mode_switch.js  시작 화면의 일반/하드 슬라이딩 스위치
@@ -182,7 +185,19 @@
     //  (assets/sfx_btn.js 가 표시를 남기고, 여기서 그 표시를 읽는다. 둘은 짝이다)
     { n: "효과음 음소거 유지",
       f: "      sfxGain.gain.value = 0.6;",
-      r: "      sfxGain.gain.value = 0.6;\n      if (window.__creamSfxMuted) sfxGain.gain.value = 0;" }
+      r: "      sfxGain.gain.value = 0.6;\n      if (window.__creamSfxMuted) sfxGain.gain.value = 0;" },
+    // ---- 추가 패턴 연결 (똥쥐똥 / 똥똥) ------------------------------------
+    //  기존 콤보(똥+쥐)가 나온 경우에는 그 뒤에 똥 하나를 더 붙일지 물어보고,
+    //  콤보가 안 나온 평범한 똥에는 바짝 붙는 똥 하나를 붙일지 물어본다.
+    //  실제 판단과 간격 계산은 assets/pattern_module.js 가 한다.
+    //  모듈이 없으면 typeof 검사에서 걸러져 예전과 똑같이 동작한다.
+    { n: "추가 패턴 연결",
+      f: "      nextSpawnIn = Math.max(nextSpawnIn, 1450);\n    }\n  }\n",
+      r: "      nextSpawnIn = Math.max(nextSpawnIn, 1450);\n" +
+         "      if (typeof patAfterCombo === 'function') patAfterCombo(x, pw, ph);\n" +
+         "    } else if (!skipCombo && typeof patPoopPair === 'function'){\n" +
+         "      patPoopPair(x, pw, ph);\n" +
+         "    }\n  }\n" }
   ];
 
   function fail(why){
@@ -278,17 +293,18 @@
     grab(GAME_SRC, 50000, "game.js"),
     grab(DOG_SRC, 1000, "흑견 본체(dog_module.js)"),
     grab(DEMON_SRC, 1000, "악마 패턴(demon_module.js)"),
+    grab(PAT_SRC, 500, "추가 패턴(pattern_module.js)"),
     preload(PRELOAD, 4000)
   ]).then(function(got){
-    var src = got[0], dog = got[1], demon = got[2];
+    var src = got[0], dog = got[1], demon = got[2], pat = got[3];
 
     for (var i = 0; i < PATCHES.length; i++){
       src = apply(src, PATCHES[i].f, PATCHES[i].r, PATCHES[i].n);
     }
     // 흑견 본체와 악마 패턴을 game.js 안쪽(같은 클로저)에 심는다. 그래야
     // obstacles/score 같은 게임 내부 변수에 접근할 수 있다.
-    src = apply(src, DOG_ANCHOR, dog + "\n" + demon + "\n" + DOG_ANCHOR,
-                "흑견/악마 본체 삽입 위치");
+    src = apply(src, DOG_ANCHOR, dog + "\n" + demon + "\n" + pat + "\n" + DOG_ANCHOR,
+                "흑견/악마/추가패턴 본체 삽입 위치");
 
     // 개발자 도구에서 이 코드가 어느 파일인지 알아볼 수 있게 이름을 붙인다.
     src += "\n//# sourceURL=endless-game.js\n";

@@ -22,6 +22,7 @@
 //     13) 스크롤 속도 상한을 배수로 열어준다 (중력 상한은 game.js가 window로 읽는다)
 //      5) 안에서 시작 목숨 상태도 정한다 (무한질주는 크림이 혼자부터 시작)
 //  14~16) 쥐/까마귀 판정 박스를 줄이고, 까마귀 그림과 판정의 어긋남을 없앤다
+//     17) 효과음(AudioContext)을 밖에서 깨울 수 있게 내보낸다
 //  그리고 게임을 시작하기 전에 장애물 그림을 미리 받아둔다 (아래 PRELOAD 주석 참고)
 //
 //  [안전장치]
@@ -40,8 +41,15 @@
   var DOG_SRC    = "assets/dog_module.js?v=1";
   // 악마 패턴 본체. 최고 속도에 도달한 뒤에만 동작한다.
   var DEMON_SRC  = "assets/demon_module.js?v=1";
-  // game.js 실행이 끝난 뒤에 붙일 순위표 파일 (game.js보다 먼저 실행되면 안 된다)
-  var AFTER_SRC  = "assets/lb_endless.js?v=1";
+  // game.js 실행이 끝난 뒤에 붙일 파일들 (game.js보다 먼저 실행되면 안 된다)
+  //   lb_endless.js   순위표
+  //   mode_switch.js  시작 화면의 일반/하드 슬라이딩 스위치
+  //   audio_wake.js   잠든 효과음(AudioContext) 깨우기 (아래 17번 패치와 짝)
+  var AFTER_SRC  = [
+    "assets/lb_endless.js?v=1",
+    "assets/mode_switch.js?v=1",
+    "assets/audio_wake.js?v=1"
+  ];
   // 흑견 본체를 끼워넣을 자리. game.js 안에서 딱 한 번 나오는 문장이어야 한다.
   var DOG_ANCHOR = "  function activateInvincibility(){";
 
@@ -117,7 +125,22 @@
     //  기준점을 캐릭터 판정 쪽으로 옮기면 어긋남이 3.5px 로 줄어든다.
     { n: "까마귀 연출 기준점",
       f: "          var crowDist = Math.abs(o.x - charLeftPx);",
-      r: "          var crowDist = Math.abs(o.x - (charLeftPx + (window.CROW_ARC_ANCHOR_CW || 0) * character.offsetWidth));" }
+      r: "          var crowDist = Math.abs(o.x - (charLeftPx + (window.CROW_ARC_ANCHOR_CW || 0) * character.offsetWidth));" },
+    // ---- 효과음 깨우기 ------------------------------------------------------
+    //  효과음은 Web Audio(AudioContext)로 그 자리에서 만드는데, 모바일은 페이지에서
+    //  나는 소리가 전부 멈춰 있는 동안 그 장치를 재워버린다. game.js 는 게임을 시작할
+    //  때 한 번만 깨우기 때문에, 음소거로 음악이 끊긴 사이에 잠들면 아무도 다시
+    //  깨워주지 않는다. 그게 "껐다 켜면 BGM 은 나오는데 효과음만 죽는" 상태의 원인이다.
+    //  깨우는 손잡이가 game.js 안쪽(클로저)에 갇혀 있어서 밖에서 손이 닿지 않으므로,
+    //  window 로 내보내기만 한다. 실제로 부르는 쪽은 assets/audio_wake.js 다.
+    { n: "효과음 깨우기",
+      f: "  var audioCtx = null, masterGain = null, sfxGain = null;",
+      r: "  var audioCtx = null, masterGain = null, sfxGain = null;\n" +
+         "  window.__creamResumeAudio = function(){\n" +
+         "    try {\n" +
+         "      if (audioCtx && audioCtx.state !== 'running' && audioCtx.resume) audioCtx.resume();\n" +
+         "    } catch (e) {}\n" +
+         "  };" }
   ];
 
   function fail(why){
@@ -139,9 +162,11 @@
   }
 
   function runAfter(){
-    var s = document.createElement("script");
-    s.src = AFTER_SRC;
-    document.body.appendChild(s);
+    for (var i = 0; i < AFTER_SRC.length; i++){
+      var s = document.createElement("script");
+      s.src = AFTER_SRC[i];
+      document.body.appendChild(s);
+    }
   }
 
   function grab(url, minLen, label){

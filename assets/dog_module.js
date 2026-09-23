@@ -1,15 +1,23 @@
   /* ===================== 흑견 (무한질주 전용) =====================
-     회피 게이지가 유모차의 2배만큼 차면 흑견이 우리 편으로 등장한다.
-     크림이 옆에서 같이 달리다가, 닿을 수 있는 장애물이 앞에 오면 총알처럼
-     튀어나가 물어서 없애고 다시 돌아온다. 3마리를 잡으면 오른쪽으로 달려나가 퇴장.
+     유모차 무적이 끝난 뒤 장애물을 DOG_AFTER_INV 개 더 넘기면 흑견이 우리 편으로
+     등장한다. 크림이 옆에서 같이 달리다가, 닿을 수 있는 장애물이 앞에 오면 총알처럼
+     튀어나가 물어서 없애고 다시 돌아온다. 5마리를 잡으면 오른쪽으로 달려나가 퇴장.
+
+     [소환 조건을 게이지 배수에서 바꾼 이유]
+     예전에는 흑견 게이지가 유모차 게이지의 정해진 배수만큼 차면 나왔다. 그런데 두
+     게이지가 같은 회피로 함께 차기 때문에, 배수를 어떻게 잡아도 유모차가 터지는
+     순간과 주기적으로 겹쳤다. 그래서 기준을 시점으로 바꿨다. "무적이 끝나는 순간"을
+     잡아서 거기서부터 장애물을 세고, 정해진 개수를 넘기면 소환한다. 이러면 겹칠
+     수가 구조적으로 없고, 플레이어 입장에서는 유모차 -> 몇 개 -> 흑견 순서가
+     항상 일정하게 느껴진다.
 
      - 나갈 때(dash)와 돌아올 때(back) 모두 문다. 돌진만 물게 했더니, 왕복 0.4초 동안
        나머지 장애물이 흑견 뒤로 지나가버려서 "한 마리만 잡고 가만히 있는" 일이 생겼다
        (장애물이 촘촘한 천장 속도에서 특히). 돌아오는 길에도 쓸고 오면 뭉쳐 나온
-       장애물을 제대로 3마리까지 처리한다.
+       장애물을 제대로 정해진 마리 수까지 처리한다.
 
-     - 유모차 무적과 절대 겹치지 않는다. 게이지가 다 찼어도 무적 중이면 끝날 때까지 기다린다.
-       (흑견 게이지가 유모차의 2배라 둘이 정확히 같은 순간에 차오르기 때문에 꼭 필요하다.)
+     - 유모차 무적과 절대 겹치지 않는다. 애초에 무적이 끝난 뒤부터 세기 시작하고,
+       소환 직전에 무적 여부를 한 번 더 확인한다.
      - 까마귀는 "보이는 높이"가 흑견의 점프 높이 안에 들어왔을 때만 문다. 까마귀는 멀리서
        높이 떠 있다가 크림이 앞에서 급강하하므로, 자연스럽게 최저점 근처에서 잡히게 된다.
      - 까마귀를 물 때는 그 높이까지 뛰어오른다. 뛰는 동안에는 달리기 프레임 애니메이션을
@@ -23,8 +31,9 @@
      ================================================================ */
   var DOG_ALLY_ON     = !!window.ENDLESS_MODE;
   var DOG_KO_SCORE    = window.ENDLESS_DOG_SCORE || 150;
-  var DOG_KILLS_MAX   = window.ENDLESS_DOG_KILLS || 3;
-  var DOG_GAUGE_MULT  = window.ENDLESS_DOG_GAUGE_MULT || 2;
+  var DOG_KILLS_MAX   = window.ENDLESS_DOG_KILLS || 5;
+  //  유모차 무적이 끝난 뒤 몇 개를 더 넘기면 흑견이 나오는지.
+  var DOG_AFTER_INV   = window.ENDLESS_DOG_AFTER_INV || 4;
   var DOG_REACH_MULT  = window.ENDLESS_DOG_REACH || 2.0;
   var DOG_DASH_MULT   = window.ENDLESS_DOG_DASH || 2.4;
   var DOG_BACK_MULT   = window.ENDLESS_DOG_BACK || 3.2;
@@ -39,6 +48,8 @@
   var DOG_LEAP_EASE   = 12;
 
   var dogGauge = 0, dogActive = false, dogKills = 0;
+  var dogArmed = false;     // 무적이 끝나서 이제 장애물을 세고 있는지
+  var dogPrevInv = false;   // 지난 프레임의 무적 상태 (끝나는 순간을 잡기 위해)
   var dogPhase = 'escort';           // escort(동행) | dash(돌진) | back(복귀) | exit(퇴장)
   var dogX = 0, dogY = 0, dogEl = null;
   var dogFrameA = null, dogFrameB = null;   // 프레임 고정용
@@ -46,7 +57,7 @@
   var dogFillEl  = document.getElementById('dogFill');
   var dogRiderEl = document.getElementById('dogRider');
 
-  function dogMax(){ return currentGaugeMax() * DOG_GAUGE_MULT; }
+  function dogMax(){ return DOG_AFTER_INV; }
   function dogHeight(){ return DOG_H * 1.15; }
   function dogWidth(){ return dogHeight() * DOG_ASPECT; }
   // 크림이 '앞'(오른쪽)에 붙어서 같이 달린다. 거기서 앞으로 튀어나간다.
@@ -61,9 +72,10 @@
     if (dogRiderEl) dogRiderEl.style.left = Math.max(3, Math.min(97, pct)) + '%';
   }
 
-  // addGaugeDodge 에서 유모차 게이지와 같은 타이밍에 불린다.
+  // addGaugeDodge 에서 유모차 게이지와 같은 타이밍에 불린다. 단, 무적이 한 번
+  // 끝난 뒤(dogArmed)부터만 센다. 그 전에는 흑견 게이지가 아예 오르지 않는다.
   function dogAddDodge(){
-    if (!DOG_ALLY_ON || dogActive) return;
+    if (!DOG_ALLY_ON || dogActive || !dogArmed) return;
     if (dogGauge < dogMax()) dogGauge++;
     dogUI();
   }
@@ -137,6 +149,8 @@
 
   function dogReset(){
     dogGauge = 0;
+    dogArmed = false;
+    dogPrevInv = false;
     dogRetire();
   }
 
@@ -199,9 +213,21 @@
   function dogUpdate(dt){
     if (!DOG_ALLY_ON || state !== 'playing') return;
 
+    // 유모차 무적이 "끝나는 순간"을 잡아서 그때부터 장애물을 센다. 이러면 흑견이
+    // 무적과 겹칠 수가 없다.
+    if (dogPrevInv && !invincible && !dogActive){
+      dogArmed = true;
+      dogGauge = 0;
+      dogUI();
+    }
+    dogPrevInv = invincible;
+
     if (!dogActive){
-      // 게이지가 다 찼어도 유모차 무적 중이면 끝날 때까지 기다린다 (겹침 방지).
-      if (dogGauge >= dogMax() && !invincible){ dogGauge = 0; dogSummon(); }
+      if (dogArmed && dogGauge >= dogMax() && !invincible){
+        dogGauge = 0;
+        dogArmed = false;
+        dogSummon();
+      }
       return;
     }
 

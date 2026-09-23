@@ -14,7 +14,8 @@
 //    1) 쥐 판정 박스를 줄인다
 //    2) 까마귀 판정 박스를 줄인다
 //    3) 까마귀 그림과 판정의 어긋남을 없앤다
-//    4) 효과음(AudioContext)을 밖에서 깨울 수 있게 내보낸다
+//    4) 효과음을 밖에서 깨우고/음소거할 수 있게 손잡이를 내보낸다
+//    5) 저장해둔 효과음 음소거 설정이 게임을 다시 시작해도 유지되게 한다
 //  무한질주 쪽 1~3번(14~16)과 완전히 같은 문장이다. 그래서 두 모드의 판정이 같다.
 //
 //  ★ [안전장치 - 무한질주와 다른 점] ★
@@ -35,10 +36,14 @@
   //   lb_extra.js    순위표 추가 기능 (전체 순위 보기 / 등록 허용 등수)
   //   mode_switch.js 시작 화면의 일반/하드 슬라이딩 스위치
   //   audio_wake.js  잠든 효과음(AudioContext) 깨우기 (아래 4번 패치와 짝)
+  //   sfx_icons.js   효과음 버튼 아이콘 (sfx_btn.js 보다 먼저 와야 한다)
+  //   sfx_btn.js     효과음 음소거 버튼 (아래 5번 패치와 짝)
   var AFTER_SRC = [
     "assets/lb_extra.js?v=1",
     "assets/mode_switch.js?v=1",
-    "assets/audio_wake.js?v=1"
+    "assets/audio_wake.js?v=1",
+    "assets/sfx_icons.js?v=1",
+    "assets/sfx_btn.js?v=1"
   ];
 
   var PATCHES = [
@@ -69,14 +74,34 @@
     //  깨워주지 않는다. 그게 "껐다 켜면 BGM 은 나오는데 효과음만 죽는" 상태의 원인이다.
     //  깨우는 손잡이가 game.js 안쪽(클로저)에 갇혀 있어서 밖에서 손이 닿지 않으므로,
     //  window 로 내보내기만 한다. 실제로 부르는 쪽은 assets/audio_wake.js 다.
-    { n: "효과음 깨우기",
+    { n: "효과음 손잡이 내보내기",
       f: "  var audioCtx = null, masterGain = null, sfxGain = null;",
       r: "  var audioCtx = null, masterGain = null, sfxGain = null;\n" +
          "  window.__creamResumeAudio = function(){\n" +
          "    try {\n" +
          "      if (audioCtx && audioCtx.state !== 'running' && audioCtx.resume) audioCtx.resume();\n" +
          "    } catch (e) {}\n" +
-         "  };" }
+         "  };\n" +
+         "  window.__creamSetSfxMuted = function(m){\n" +
+         "    window.__creamSfxMuted = !!m;\n" +
+         "    try {\n" +
+         "      if (!sfxGain || !sfxGain.gain) return;\n" +
+         "      if (m){\n" +
+         "        if (sfxGain.gain.value > 0) window.__creamSfxVol = sfxGain.gain.value;\n" +
+         "        sfxGain.gain.value = 0;\n" +
+         "      } else {\n" +
+         "        sfxGain.gain.value = (window.__creamSfxVol == null ? 0.6 : window.__creamSfxVol);\n" +
+         "      }\n" +
+         "    } catch (e) {}\n" +
+         "  };" },
+    // ---- 효과음 음소거를 계속 유지 -------------------------------------------
+    //  효과음 장치(sfxGain)는 게임을 처음 시작할 때 만들어지고, game.js 는 만들면서
+    //  0.6 을 넣는다. 그때 사용자가 저장해둔 음소거 설정을 보게 해야, 페이지를 새로
+    //  열거나 게임을 다시 시작해도 효과음 음소거가 풀리지 않는다.
+    //  (assets/sfx_btn.js 가 표시를 남기고, 여기서 그 표시를 읽는다. 둘은 짝이다)
+    { n: "효과음 음소거 유지",
+      f: "      sfxGain.gain.value = 0.6;",
+      r: "      sfxGain.gain.value = 0.6;\n      if (window.__creamSfxMuted) sfxGain.gain.value = 0;" }
   ];
 
   function note(msg){
@@ -86,6 +111,9 @@
   function runAfter(){
     for (var i = 0; i < AFTER_SRC.length; i++){
       var s = document.createElement("script");
+      // 코드에서 만든 <script> 는 기본이 async 라 순서가 보장되지 않는다. false 로
+      // 두면 위 목록에 적은 순서대로 실행된다 (아이콘 파일이 버튼 파일보다 먼저).
+      s.async = false;
       s.src = AFTER_SRC[i];
       document.body.appendChild(s);
     }

@@ -26,6 +26,7 @@
        멈추고 두 번째 프레임(네 발이 다 떠서 몸이 늘어난 자세)으로 고정한다. 그림을 새로
        그리지 않고 점프 연출을 만드는 방법이다.
      - 장애물 제거는 무적 상태의 처치와 똑같은 연출/소리를 그대로 쓴다.
+     - 머리 위에 남은 마리 수 배지가 붙는다 (5 -> 4 -> 3 -> 2 -> 1). 아래 dogMakeCount 참고.
 
      이 파일은 assets/endless_boot.js 가 game.js 안쪽(같은 클로저)에 통째로 심는다.
      그래서 obstacles / score / speed 같은 게임 내부 변수를 그대로 쓸 수 있다.
@@ -56,6 +57,7 @@
   var dogPhase = 'escort';           // escort(동행) | dash(돌진) | back(복귀) | exit(퇴장)
   var dogX = 0, dogY = 0, dogEl = null;
   var dogFrameA = null, dogFrameB = null;   // 프레임 고정용
+  var dogCountEl = null, dogCountNumEl = null;   // 남은 마리 수 배지
 
   var dogFillEl  = document.getElementById('dogFill');
   var dogRiderEl = document.getElementById('dogRider');
@@ -85,6 +87,73 @@
     dogUI();
   }
 
+  // ---- 남은 마리 수 배지 (5 -> 4 -> 3 -> 2 -> 1) ----------------------------
+  //  흑견이 몇 마리 더 잡고 퇴장하는지 보여준다. 유모차 무적 카운트다운
+  //  (style.css 의 #charCountdown)과 같은 모양이고 색만 흑견의 파란색이다.
+  //
+  //  왜 게이지 바에 안 붙였나: #dogBarWrap 은 style 에서 화면 높이가 600px 이하일 때
+  //  숨겨진다. 폰은 거의 다 그 아래라서 게이지 바에 숫자를 넣으면 정작 폰에서 안 보인다.
+  //  왜 흑견 안에 안 넣었나: 흑견 그림은 달려나갈 때 좌우가 뒤집히므로(.face-right)
+  //  자식으로 넣으면 숫자도 거울처럼 뒤집힌다. 그래서 #app 에 따로 얹고 흑견 머리 위로
+  //  위치만 따라가게 한다.
+  function dogMakeCount(){
+    if (dogCountEl || !app) return;
+    if (!document.getElementById('dogCountCss')){
+      var css = document.createElement('style');
+      css.id = 'dogCountCss';
+      css.textContent =
+        '#dogCount{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
+          'box-sizing:border-box;' +   // 테두리 2px 을 폭에 포함시켜야 화면 끝 잘림 계산이 맞는다
+          'border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+          'background:radial-gradient(circle at 35% 30%,#eaf4ff 0%,#8fc7ff 55%,#2f5fa8 100%);' +
+          'border:2px solid #fff;' +
+          'box-shadow:0 0 8px 2px rgba(140,200,255,.85),0 2px 4px rgba(0,0,0,.4);' +
+          'transition:opacity .15s linear;}' +
+        '#dogCountNum{font-family:"Baloo 2",sans-serif;font-weight:800;color:#fff;' +
+          'line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.45);}' +
+        '@keyframes dogCountPop{from{transform:scale(1.4);}to{transform:scale(1);}}' +
+        '#dogCount.on{opacity:1;}' +
+        '#dogCount.bump{animation:dogCountPop .22s ease-out;}';
+      document.head.appendChild(css);
+    }
+    dogCountEl = document.createElement('div');
+    dogCountEl.id = 'dogCount';
+    dogCountNumEl = document.createElement('span');
+    dogCountNumEl.id = 'dogCountNum';
+    dogCountEl.appendChild(dogCountNumEl);
+    app.appendChild(dogCountEl);
+  }
+
+  function dogCountHide(){
+    if (dogCountEl) dogCountEl.classList.remove('on');
+  }
+
+  function dogCountLayout(){
+    if (!dogCountEl || !app) return;
+    var left = DOG_KILLS_MAX - dogKills;
+    if (!dogActive || left <= 0 || (dogEl && dogEl.hidden)){ dogCountHide(); return; }
+    var appW = app.clientWidth || 390;
+    var appH = app.clientHeight || 219;
+    var size = Math.max(20, Math.min(34, appH * 0.135));
+    dogCountEl.style.width = size.toFixed(1) + 'px';
+    dogCountEl.style.height = size.toFixed(1) + 'px';
+    dogCountNumEl.style.fontSize = (size * 0.52).toFixed(1) + 'px';
+    var lx = dogX + dogWidth() / 2 - size / 2;
+    if (lx < 2) lx = 2;
+    if (lx > appW - size - 2) lx = appW - size - 2;
+    dogCountEl.style.left = lx.toFixed(1) + 'px';
+    dogCountEl.style.bottom =
+      Math.min(appH - size - 2, GROUND_H + dogY + dogHeight() + 3).toFixed(1) + 'px';
+    // 숫자가 줄어드는 순간에만 한 번 통 튀게 한다.
+    if (dogCountNumEl.textContent !== String(left)){
+      dogCountNumEl.textContent = String(left);
+      dogCountEl.classList.remove('bump');
+      void dogCountEl.offsetWidth;          // 애니메이션을 다시 재생시키기 위한 강제 계산
+      dogCountEl.classList.add('bump');
+    }
+    dogCountEl.classList.add('on');
+  }
+
   function dogMakeEl(){
     if (dogEl) return;
     dogEl = document.createElement('div');
@@ -98,6 +167,7 @@
     obstaclesLayer.appendChild(dogEl);
     dogFrameA = dogEl.querySelector('.frame-a');
     dogFrameB = dogEl.querySelector('.frame-b');
+    dogMakeCount();
   }
 
   // 달리기 프레임 애니메이션을 멈추고 2번 프레임(점프 자세)으로 고정한다.
@@ -128,6 +198,7 @@
     // 원본 그림은 왼쪽을 보고 있다. 앞으로 달려나갈 때만 좌우를 뒤집고,
     // 돌아올 때는 원래 방향이 그대로 맞다.
     dogEl.classList.toggle('face-right', dogPhase !== 'back');
+    dogCountLayout();
   }
 
   function dogSummon(){
@@ -149,6 +220,7 @@
     dogPhase = 'escort';
     dogY = 0;
     if (dogEl){ dogSetLeapFrame(false); dogEl.hidden = true; }
+    dogCountHide();
     dogUI();
   }
 

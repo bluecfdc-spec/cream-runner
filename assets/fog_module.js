@@ -42,8 +42,10 @@
 //    &fwide=2.7    안개 폭 = 큰 똥 폭의 몇 배 (기본 2.7 = 약 176px)
 //    &ftall=0.64   안개 높이 = 화면 높이 대비 (기본 0.64)
 //    &fleft=0      안개 시작점 보정(px). 양수면 오른쪽으로 밀어 더 쉬워진다
-//    &fdown=0.30   경고 표시를 새 경고보다 얼마나 내릴지 (화면 높이 대비)
-//    &fwsize=1     경고 표시 크기 배수 (0.5 ~ 2)
+//    &fwsize=1     경고 표시 굵기 배수 (0.5 ~ 2)
+//    &fwtall=0.62  경고 표시 높이 = 화면 높이 대비
+//    &fwright=0.012 우측 끝에서 띄우는 양 (화면 폭 대비)
+//    &fwbot=0.08   바닥에서 띄우는 양 (화면 높이 대비)
 // ============================================================================
 (function(){
   "use strict";
@@ -73,8 +75,10 @@
   var WIDE  = Math.max(1, num('fwide', 2.7));       // 큰 똥 폭의 몇 배
   var TALL  = Math.max(0.2, num('ftall', 0.64));    // 화면 높이 대비
   var LEFTADJ = num('fleft', 0);                    // 시작점 보정(px)
-  var DOWN  = num('fdown', 0.30);                   // 경고 표시를 내리는 양
-  var WSCALE = Math.min(2, Math.max(0.5, num('fwsize', 1)));  // 경고 표시 크기 배수
+  var WSCALE = Math.min(2, Math.max(0.5, num('fwsize', 1)));  // 경고 표시 굵기 배수
+  var WTALL = Math.min(0.95, Math.max(0.2, num('fwtall', 0.62)));  // 경고 높이
+  var WRIGHT = num('fwright', 0.012);               // 우측 끝에서 띄우는 양
+  var WBOT  = num('fwbot', 0.08);                   // 바닥에서 띄우는 양
 
   // ---- 그림 파일을 직접 불러온다 -------------------------------------------
   function loadImgs(done){
@@ -98,7 +102,6 @@
     var charEl  = document.getElementById('character');
     var startS  = document.getElementById('startScreen');
     var overS   = document.getElementById('gameOverScreen');
-    var crowW   = document.getElementById('crowWarning');
     if (!app || !layer || !scoreEl || !charEl) return;
 
     // ---- 스타일 ------------------------------------------------------------
@@ -123,13 +126,13 @@
         '100%{transform:translate3d(0,0,0) scale(1.00);}' +
       '}' +
       '#fogBank.on{opacity:1;animation:fogBreathe 2.6s ease-in-out infinite;}' +
-      // ---- 경고 표시 ----
-      //  새 경고와 같은 X, DOWN 만큼 아래. 홍균이 준 안개 그림은 부드러운 파스텔
-      //  덩어리라서 밤하늘에 그냥 얹으면 장식으로 읽히고 경고로 안 읽힌다. 그래서
-      //  어두운 받침판에 올리고 빛나는 테두리 + 빨간 느낌표 배지 + "안개!" 글자를
-      //  붙였다. 그림 자체는 손대지 않는다.
-      //  ★ 크기 변화(scale)는 겉껍데기에, 빛번짐(box-shadow)은 받침판에만 준다.
-      //    한 요소에 둘을 같이 주면 글자 뒤로 네모난 그림자가 따라 그려진다.
+      // ---- 경고 표시 (우측 끝 세로 띠) ----
+      //  처음에는 새 경고와 같은 X(화면 62%)에 가로로 놓았는데, 거기가 바로 장애물이
+      //  지나가는 길목이어서 경고 자체가 패턴을 가려 게임을 방해했다. 그래서 화면
+      //  우측 끝에 세로로 세운 얇은 띠로 바꿨고, 받침판(네모 박스)도 없앴다.
+      //  박스가 없으니 대비는 그림 자체의 빛번짐과 글자 그림자로 만든다.
+      //  ★ 크기 변화(scale)는 겉껍데기 띠에, 빛번짐은 그림에만 준다. 한 요소에 둘을
+      //    같이 주면 글자 뒤로 네모난 그림자가 따라 그려진다.
       '#fogWarn{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
         'display:flex;flex-direction:column;align-items:center;' +
         'transition:opacity .12s linear;}' +
@@ -138,25 +141,30 @@
         '50%{transform:scale(1.06);}' +
       '}' +
       '#fogWarn.on{opacity:1;animation:fogWarnPop .52s ease-in-out infinite;}' +
-      '#fogWarnPlate{position:relative;width:100%;box-sizing:border-box;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'border-radius:16px;border:2.5px solid rgba(255,170,235,.95);' +
-        'background:radial-gradient(ellipse at 50% 60%,rgba(60,30,90,.72),rgba(12,16,40,.9));' +
-        'box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 18px rgba(255,140,225,.75);}' +
-      '@keyframes fogWarnGlow{' +
-        '0%,100%{box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 10px rgba(255,140,225,.5);}' +
-        '50%{box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 24px rgba(255,150,230,1);}' +
+      // 그림 자리. 안개 그림은 가로로 긴 그림이라 90도 돌려 세로 띠를 채운다.
+      '#fogWarnPicWrap{position:relative;width:100%;flex:1 1 auto;min-height:0;}' +
+      //  가로로 긴 그림을 90도 돌려 세로 띠를 꽉 채운다(cover). 좌우가 조금 잘리지만
+      //  안개는 윤곽이 없어서 잘린 게 보이지 않는다. 대신 위아래 끝을 마스크로 흐리게
+      //  지워서 "세로 네모"로 보이지 않게 한다 (박스를 지운 취지를 유지).
+      '#fogWarnPic{position:absolute;left:50%;top:50%;' +
+        'background-repeat:no-repeat;background-position:center;background-size:cover;' +
+        '-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,#000 13%,#000 87%,rgba(0,0,0,0) 100%);' +
+        'mask-image:linear-gradient(90deg,rgba(0,0,0,0) 0%,#000 13%,#000 87%,rgba(0,0,0,0) 100%);}' +
+      '@keyframes fogWarnAura{' +
+        '0%,100%{filter:drop-shadow(0 0 3px rgba(255,140,225,.65)) drop-shadow(0 1px 2px rgba(0,0,0,.6));}' +
+        '50%{filter:drop-shadow(0 0 14px rgba(255,160,235,1)) drop-shadow(0 1px 2px rgba(0,0,0,.6));}' +
       '}' +
-      '#fogWarn.on #fogWarnPlate{animation:fogWarnGlow .52s ease-in-out infinite;}' +
-      '#fogWarnPic{background-repeat:no-repeat;background-position:center;' +
-        'background-size:contain;flex:0 0 auto;}' +
-      '#fogWarnBang{position:absolute;border-radius:50%;box-sizing:border-box;' +
+      '#fogWarn.on #fogWarnPic{animation:fogWarnAura .52s ease-in-out infinite;}' +
+      '#fogWarnBang{flex:0 0 auto;border-radius:50%;box-sizing:border-box;' +
         'background:#ff4d6d;border:2.5px solid #fff;color:#fff;text-align:center;' +
         'font-family:"Baloo 2",sans-serif;font-weight:800;' +
         'box-shadow:0 2px 5px rgba(0,0,0,.5),0 0 12px rgba(255,80,120,.95);}' +
-      '#fogWarnTxt{font-family:"Baloo 2",sans-serif;font-weight:800;color:#fff;' +
-        'letter-spacing:.04em;line-height:1.1;white-space:nowrap;' +
-        'text-shadow:0 1px 3px #000,0 0 10px rgba(255,150,230,1);}' +
+      // 글자도 세로로 세운다 (안 / 개 가 위아래로 쌓인다).
+      '#fogWarnTxt{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);' +
+        'font-family:"Baloo 2",sans-serif;font-weight:800;color:#fff;' +
+        'writing-mode:vertical-rl;text-orientation:upright;' +
+        '-webkit-writing-mode:vertical-rl;letter-spacing:.06em;line-height:1;' +
+        'text-shadow:0 1px 2px #000,0 2px 6px #000,0 0 10px rgba(255,120,220,1);}' +
       // 남은 시간
       '#fogCount{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
         'font:800 13px/1 "Baloo 2",sans-serif;color:#fff;' +
@@ -172,21 +180,21 @@
 
     var warn = document.createElement('div');
     warn.id = 'fogWarn';
-    var wPlate = document.createElement('div');
-    wPlate.id = 'fogWarnPlate';
     var wBang = document.createElement('div');
     wBang.id = 'fogWarnBang';
     wBang.textContent = '!';
+    var wWrap = document.createElement('div');
+    wWrap.id = 'fogWarnPicWrap';
     var wPic = document.createElement('div');
     wPic.id = 'fogWarnPic';
     wPic.style.backgroundImage = 'url(' + window.FOG_IMG_WARN + ')';
-    wPlate.appendChild(wBang);
-    wPlate.appendChild(wPic);
+    wWrap.appendChild(wPic);
     var wTxt = document.createElement('div');
     wTxt.id = 'fogWarnTxt';
-    wTxt.textContent = '안개!';
-    warn.appendChild(wPlate);
-    warn.appendChild(wTxt);
+    wTxt.textContent = '안개';
+    wWrap.appendChild(wTxt);              // 그림 위에 겹쳐서 높이를 잡아먹지 않는다
+    warn.appendChild(wBang);
+    warn.appendChild(wWrap);
     app.appendChild(warn);
 
     var cnt = document.createElement('div');
@@ -236,33 +244,30 @@
       fog.style.maskImage = mask;
       cnt.style.left = (geo.left + geo.w / 2 - 12).toFixed(1) + 'px';
       cnt.style.bottom = (geo.bottom + geo.h + 2).toFixed(1) + 'px';
-      // ---- 경고 표시 자리 ----
-      //  받침판 폭은 화면 높이에 매되, 좁은 화면에서 가로를 다 먹지 않도록 잘라낸다.
-      var ww = Math.min(appW * 0.42, Math.max(96, appH * 0.58)) * WSCALE;
-      var plateH = ww * 0.485;
-      var fontPx = Math.max(11, ww * 0.117);
-      var bang = Math.max(18, ww * 0.203);
-      var wrapH = plateH + 2 + fontPx * 1.15;
-      warn.style.width = ww.toFixed(1) + 'px';
-      warn.style.gap = '2px';
-      wPlate.style.height = plateH.toFixed(1) + 'px';
-      wPic.style.width = (ww * 0.81).toFixed(1) + 'px';
-      wPic.style.height = (ww * 0.406).toFixed(1) + 'px';
+      // ---- 경고 표시 자리 (우측 끝, 세로) ----
+      //  장애물 길목을 비우기 위해 화면 오른쪽 끝에 붙인다. 바닥에서 띄우는 양은
+      //  안개와 같게 맞춰서 두 연출이 같은 선 위에 놓이게 했다.
+      var bandW = Math.max(30, appW * 0.115 * WSCALE);
+      var bandH = appH * WTALL;
+      var bang = Math.max(17, bandW * 0.55);
+      var fontPx = Math.max(10, bandW * 0.34);
+      warn.style.width = bandW.toFixed(1) + 'px';
+      warn.style.height = bandH.toFixed(1) + 'px';
+      warn.style.gap = '3px';
       wBang.style.width = bang.toFixed(1) + 'px';
       wBang.style.height = bang.toFixed(1) + 'px';
-      wBang.style.left = (-bang * 0.35).toFixed(1) + 'px';
-      wBang.style.top = (-bang * 0.42).toFixed(1) + 'px';
       wBang.style.fontSize = (bang * 0.65).toFixed(1) + 'px';
       wBang.style.lineHeight = (bang - 5).toFixed(1) + 'px';
       wTxt.style.fontSize = fontPx.toFixed(1) + 'px';
-      // 새 경고와 같은 X 에 두고 Y 만 내린다. 화면 밖으로 나가지 않게 양쪽 다 자른다.
-      var wx = appW * 0.62 - ww / 2, wy = appH * 0.20;
-      if (crowW){
-        var ar = app.getBoundingClientRect(), cr = crowW.getBoundingClientRect();
-        if (cr.width){ wx = cr.left - ar.left + cr.width / 2 - ww / 2; wy = cr.top - ar.top; }
-      }
-      warn.style.left = Math.min(appW - ww - 2, Math.max(2, wx)).toFixed(1) + 'px';
-      warn.style.top = Math.min(appH - wrapH - 2, Math.max(2, wy + appH * DOWN)).toFixed(1) + 'px';
+      //  느낌표 배지와 간격을 뺀 나머지를 그림이 전부 쓴다. 안개 그림은 가로로 긴
+      //  그림이라, 눕힌 상태로 크기를 잡고 90도 돌린다. 그래서 돌리기 전 기준에서는
+      //  width 에 '띠의 남은 높이'가, height 에 '띠의 굵기'가 들어간다.
+      var picLen = Math.max(24, bandH - bang - 3);
+      wPic.style.width = picLen.toFixed(1) + 'px';
+      wPic.style.height = bandW.toFixed(1) + 'px';
+      wPic.style.transform = 'translate(-50%,-50%) rotate(90deg)';
+      warn.style.left = Math.max(2, appW - bandW - appW * WRIGHT).toFixed(1) + 'px';
+      warn.style.top = Math.max(2, appH - appH * WBOT - bandH).toFixed(1) + 'px';
       return true;
     }
     layout();

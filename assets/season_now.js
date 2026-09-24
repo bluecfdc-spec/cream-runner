@@ -28,6 +28,17 @@
 //  실제 이름('scores_s2')으로 바꿔서 보낸다. 순서가 뒤집히면 sig 가 붙지 않아서
 //  20,000점 넘는 기록의 등록이 전부 실패한다.
 //
+//  ★ REST 로 직접 부르는 파일도 함께 감싼다 ★  (2026-09-24 추가)
+//  순위표 추가 기능(assets/lb_extra.js, assets/lb_endless.js)은 firebase SDK 를 쓰지
+//  않고 Firestore REST API 를 직접 호출한다. 그래서 위의 collection() 가로채기를 타지
+//  않고 게시판 이름을 그대로 서버에 보낸다. 그 파일들 안에 이름이 글자로 박혀 있어서,
+//  시즌을 넘긴 뒤에도 게임오버 TOP 10 / 등수 / 노네임 기록 저장이 전부 지난 시즌
+//  게시판을 계속 썼다. 랜딩 게시판만 새 시즌을 읽어서, 한 화면은 비어 있고 다른 화면은
+//  지난 시즌 기록이 뜨는 상태가 됐다 (실제 증상: 새 시즌인데 TOP 10 이 시즌1 그대로,
+//  등수는 625등). 그래서 아래 두 번째 블록이 REST 주소와 요청 본문의 게시판 이름까지
+//  같이 바꿔준다. 이렇게 두면 앞으로 REST 를 쓰는 파일이 생겨도 자동으로 커버되고,
+//  시즌을 넘길 때 고칠 파일은 여전히 이 파일 하나뿐이다.
+//
 //  ※ 방문자 수(visits)는 바꾸지 않는다. 시즌과 무관하게 계속 누적된다.
 //  ※ 테스트 주소의 endless_test 도 바꾸지 않는다 (규칙이 막아서 저장 안 되는 게 정상).
 // ============================================================================
@@ -84,4 +95,58 @@ window.SEASON_SUFFIX = '_s2';   // 시즌 2. 시즌 3으로 넘길 때 '_s3' 으
     window.firebase.firestore = wrapped;
     window.SEASON_READY = true;
   } catch (e) {}
+})();
+
+// ---------------------------------------------------------------------------
+//  Firestore REST 경로도 같은 규칙으로 바꿔준다
+// ---------------------------------------------------------------------------
+//  바꾸는 것은 딱 두 가지다.
+//    1) 주소의 컬렉션 부분   .../documents/plays?key=...  ->  .../documents/plays_s2?key=...
+//    2) 요청 본문의 이름     {"collectionId":"scores"}    ->  {"collectionId":"scores_s2"}
+//  firestore.googleapis.com 이 아닌 요청은 손도 대지 않는다. 그래서 game.js 를 받아오는
+//  부트 로더나 무음 파일 같은 다른 fetch 에는 아무 영향이 없다.
+//  바꾸는 이름은 위와 똑같이 scores / endless / plays / endless_plays 넷뿐이다.
+//  (visits, endless_test 같은 이름은 그대로 지나간다)
+(function(){
+  "use strict";
+  var SUFFIX = window.SEASON_SUFFIX || '';
+  if (!SUFFIX) return;                          // 시즌 1이면 아무것도 감싸지 않는다
+  if (!window.fetch || window.SEASON_REST_READY) return;
+  window.SEASON_REST_READY = true;
+
+  var NAMES = 'scores|endless_plays|endless|plays';   // 긴 이름을 먼저 두어야 한다
+  var urlRe  = new RegExp('(/documents/)(' + NAMES + ')(\\?|/|$)');
+  var bodyRe = new RegExp('("collectionId"\\s*:\\s*")(' + NAMES + ')(")', 'g');
+  var map = window.SEASON_MAP || function(n){ return n; };
+
+  var of = window.fetch;
+  window.fetch = function(input, init){
+    try {
+      var url = (typeof input === 'string') ? input
+              : (input && typeof input.url === 'string') ? input.url : '';
+      if (url && url.indexOf('firestore.googleapis.com') >= 0){
+        var newUrl = url.replace(urlRe, function(m, a, name, tail){
+          return a + map(name) + tail;
+        });
+        var body = init && init.body;
+        var newInit = init;
+        if (typeof body === 'string' && body.indexOf('collectionId') >= 0){
+          var nb = body.replace(bodyRe, function(m, a, name, c){
+            return a + map(name) + c;
+          });
+          if (nb !== body){
+            newInit = {};
+            for (var k in init){ if (Object.prototype.hasOwnProperty.call(init, k)) newInit[k] = init[k]; }
+            newInit.body = nb;
+          }
+        }
+        if (newUrl !== url){
+          if (typeof input === 'string') input = newUrl;
+          else { try { input = new Request(newUrl, input); } catch (e) { input = newUrl; } }
+        }
+        return of.call(this, input, newInit);
+      }
+    } catch (e) {}
+    return of.call(this, input, init);
+  };
 })();

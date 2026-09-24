@@ -165,12 +165,22 @@
         'writing-mode:vertical-rl;text-orientation:upright;' +
         '-webkit-writing-mode:vertical-rl;letter-spacing:.06em;line-height:1;' +
         'text-shadow:0 1px 2px #000,0 2px 6px #000,0 0 10px rgba(255,120,220,1);}' +
-      // 남은 시간
+      // ---- 남은 시간 ----
+      //  예전에는 그냥 흰 글씨였는데 밤 배경에 묻혀서 숫자가 안 보였다. 그래서 유모차
+      //  (개모차) 무적 카운트다운과 똑같은 모양 - 빛나는 동그란 배지 + 커졌다 작아지는
+      //  링 - 으로 바꿨다. 다만 무적은 금색이고 이건 안개라서 파란 톤으로 구분한다.
+      //  (원본은 style.css 의 #charCountdown / @keyframes charCountdownRing)
       '#fogCount{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
-        'font:800 13px/1 "Baloo 2",sans-serif;color:#fff;' +
-        'text-shadow:0 1px 3px rgba(0,0,0,.65),0 0 8px rgba(180,120,255,.8);' +
-        'transition:opacity .16s linear;}' +
-      '#fogCount.on{opacity:1;}';
+        'border-radius:50%;display:flex;align-items:center;justify-content:center;' +
+        'background:radial-gradient(circle at 35% 30%,#eaf4ff 0%,#8fc7ff 55%,#2f5fa8 100%);' +
+        'border:2px solid #fff;transition:opacity .16s linear;}' +
+      '#fogCountNum{font-family:"Baloo 2",sans-serif;font-weight:800;color:#fff;' +
+        'line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.45);}' +
+      '@keyframes fogCountRing{' +
+        'from{box-shadow:0 0 10px 3px rgba(143,199,255,.85),0 0 20px 7px rgba(60,130,220,.55);transform:scale(1);}' +
+        'to{box-shadow:0 0 16px 6px rgba(143,199,255,1),0 0 32px 12px rgba(60,130,220,.85);transform:scale(1.1);}' +
+      '}' +
+      '#fogCount.on{opacity:1;animation:fogCountRing .5s ease-in-out infinite alternate;}';
     document.head.appendChild(css);
 
     // ---- 요소 --------------------------------------------------------------
@@ -199,6 +209,9 @@
 
     var cnt = document.createElement('div');
     cnt.id = 'fogCount';
+    var cntNum = document.createElement('span');
+    cntNum.id = 'fogCountNum';
+    cnt.appendChild(cntNum);
     app.appendChild(cnt);
 
     var dbg = null;
@@ -242,8 +255,15 @@
       fog.style.height = geo.h.toFixed(1) + 'px';
       fog.style.webkitMaskImage = mask;
       fog.style.maskImage = mask;
-      cnt.style.left = (geo.left + geo.w / 2 - 12).toFixed(1) + 'px';
-      cnt.style.bottom = (geo.bottom + geo.h + 2).toFixed(1) + 'px';
+      //  남은 시간 배지: 안개 위 가운데. 장애물은 바닥 쪽에 있고 이 배지는 안개
+      //  천장보다 위(까마귀가 나는 높이대)라서 길목을 가리지 않는다.
+      var cSize = Math.max(30, Math.min(52, appH * 0.19));
+      cnt.style.width = cSize.toFixed(1) + 'px';
+      cnt.style.height = cSize.toFixed(1) + 'px';
+      cntNum.style.fontSize = (cSize * 0.48).toFixed(1) + 'px';
+      cnt.style.left = (geo.left + geo.w / 2 - cSize / 2).toFixed(1) + 'px';
+      cnt.style.bottom = Math.min(appH - cSize - 2,
+                                  geo.bottom + geo.h + 3).toFixed(1) + 'px';
       // ---- 경고 표시 자리 (우측 끝, 세로) ----
       //  장애물 길목을 비우기 위해 화면 오른쪽 끝에 붙인다. 바닥에서 띄우는 양은
       //  안개와 같게 맞춰서 두 연출이 같은 선 위에 놓이게 했다.
@@ -331,7 +351,7 @@
         }
       } else if (phase === 'fog'){
         var left = Math.ceil((until - now) / 1000);
-        cnt.textContent = left > 0 ? left + '초' : '';
+        cntNum.textContent = left > 0 ? String(left) : '';
         if (now >= until) clear();
       }
 

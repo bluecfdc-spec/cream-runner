@@ -143,3 +143,22 @@
   setTimeout(shoot, 2200);
   schedule();
 })();
+
+// ============================================================================
+//  안개 기능 불러오기 (하드모드 전용)
+// ----------------------------------------------------------------------------
+//  endless.html 을 건드리지 않기 위해 이 파일에서 이어서 불러온다. night_fx 는
+//  하드모드에서만 로드되는 "보이는 것" 담당 파일이라 안개도 같은 자리에 둔다.
+//  fog_module.js 는 window.FOG_ON === true 이거나 주소에 ?fogtest 가 있을 때만
+//  동작한다. 즉 지금 운영에서는 아무 일도 하지 않는다.
+// ============================================================================
+(function(){
+  try {
+    if (document.getElementById('fogModuleTag')) return;
+    var s = document.createElement('script');
+    s.id = 'fogModuleTag';
+    s.src = 'assets/fog_module.js?v=1';
+    s.async = false;
+    (document.head || document.documentElement).appendChild(s);
+  } catch (e) {}
+})();

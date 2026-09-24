@@ -17,6 +17,21 @@
 (function(){
   "use strict";
 
+  // ---- 점수판 글자색 (무한질주에서만) --------------------------------------
+  //  밤 테마에서 상단 점수판 글자가 흰색으로 바뀌어 크림색 판 위에서 거의 안 보였다.
+  //  일반 모드와 똑같이 어두운 글자로 되돌린다. 글자색만 바꾸고 판 모양/배경/위치는
+  //  손대지 않는다. 무엇이 흰색으로 만들고 있든 확실히 이기도록 !important 를 쓴다
+  //  (style.css 와 endless.html 은 건드리지 않는다는 원칙 유지).
+  (function(){
+    if (document.getElementById('scoreInkCss')) return;
+    var c = document.createElement('style');
+    c.id = 'scoreInkCss';
+    c.textContent =
+      '#scoreBox{color:#1f2b3d !important;}' +
+      '#scoreBox span{color:#1f2b3d !important;}';
+    document.head.appendChild(c);
+  })();
+
   var stage = document.getElementById('stage');
   if (!stage) return;
 

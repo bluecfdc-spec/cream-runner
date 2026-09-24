@@ -43,6 +43,7 @@
 //    &ftall=0.64   안개 높이 = 화면 높이 대비 (기본 0.64)
 //    &fleft=0      안개 시작점 보정(px). 양수면 오른쪽으로 밀어 더 쉬워진다
 //    &fdown=0.30   경고 표시를 새 경고보다 얼마나 내릴지 (화면 높이 대비)
+//    &fwsize=1     경고 표시 크기 배수 (0.5 ~ 2)
 // ============================================================================
 (function(){
   "use strict";
@@ -73,6 +74,7 @@
   var TALL  = Math.max(0.2, num('ftall', 0.64));    // 화면 높이 대비
   var LEFTADJ = num('fleft', 0);                    // 시작점 보정(px)
   var DOWN  = num('fdown', 0.30);                   // 경고 표시를 내리는 양
+  var WSCALE = Math.min(2, Math.max(0.5, num('fwsize', 1)));  // 경고 표시 크기 배수
 
   // ---- 그림 파일을 직접 불러온다 -------------------------------------------
   function loadImgs(done){
@@ -121,16 +123,40 @@
         '100%{transform:translate3d(0,0,0) scale(1.00);}' +
       '}' +
       '#fogBank.on{opacity:1;animation:fogBreathe 2.6s ease-in-out infinite;}' +
-      // 경고 표시: 새 경고와 같은 X, 조금 아래
+      // ---- 경고 표시 ----
+      //  새 경고와 같은 X, DOWN 만큼 아래. 홍균이 준 안개 그림은 부드러운 파스텔
+      //  덩어리라서 밤하늘에 그냥 얹으면 장식으로 읽히고 경고로 안 읽힌다. 그래서
+      //  어두운 받침판에 올리고 빛나는 테두리 + 빨간 느낌표 배지 + "안개!" 글자를
+      //  붙였다. 그림 자체는 손대지 않는다.
+      //  ★ 크기 변화(scale)는 겉껍데기에, 빛번짐(box-shadow)은 받침판에만 준다.
+      //    한 요소에 둘을 같이 주면 글자 뒤로 네모난 그림자가 따라 그려진다.
       '#fogWarn{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
-        'background-repeat:no-repeat;background-position:center;background-size:contain;' +
+        'display:flex;flex-direction:column;align-items:center;' +
         'transition:opacity .12s linear;}' +
-      '@keyframes fogWarnPulse{' +
-        '0%{transform:scale(.86);filter:drop-shadow(0 0 0 rgba(255,140,220,0));}' +
-        '50%{transform:scale(1.12);filter:drop-shadow(0 0 10px rgba(255,150,225,.9));}' +
-        '100%{transform:scale(.86);filter:drop-shadow(0 0 0 rgba(255,140,220,0));}' +
+      '@keyframes fogWarnPop{' +
+        '0%,100%{transform:scale(.94);}' +
+        '50%{transform:scale(1.06);}' +
       '}' +
-      '#fogWarn.on{opacity:1;animation:fogWarnPulse .42s ease-in-out infinite;}' +
+      '#fogWarn.on{opacity:1;animation:fogWarnPop .52s ease-in-out infinite;}' +
+      '#fogWarnPlate{position:relative;width:100%;box-sizing:border-box;' +
+        'display:flex;align-items:center;justify-content:center;' +
+        'border-radius:16px;border:2.5px solid rgba(255,170,235,.95);' +
+        'background:radial-gradient(ellipse at 50% 60%,rgba(60,30,90,.72),rgba(12,16,40,.9));' +
+        'box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 18px rgba(255,140,225,.75);}' +
+      '@keyframes fogWarnGlow{' +
+        '0%,100%{box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 10px rgba(255,140,225,.5);}' +
+        '50%{box-shadow:0 0 0 3px rgba(12,16,40,.55),0 0 24px rgba(255,150,230,1);}' +
+      '}' +
+      '#fogWarn.on #fogWarnPlate{animation:fogWarnGlow .52s ease-in-out infinite;}' +
+      '#fogWarnPic{background-repeat:no-repeat;background-position:center;' +
+        'background-size:contain;flex:0 0 auto;}' +
+      '#fogWarnBang{position:absolute;border-radius:50%;box-sizing:border-box;' +
+        'background:#ff4d6d;border:2.5px solid #fff;color:#fff;text-align:center;' +
+        'font-family:"Baloo 2",sans-serif;font-weight:800;' +
+        'box-shadow:0 2px 5px rgba(0,0,0,.5),0 0 12px rgba(255,80,120,.95);}' +
+      '#fogWarnTxt{font-family:"Baloo 2",sans-serif;font-weight:800;color:#fff;' +
+        'letter-spacing:.04em;line-height:1.1;white-space:nowrap;' +
+        'text-shadow:0 1px 3px #000,0 0 10px rgba(255,150,230,1);}' +
       // 남은 시간
       '#fogCount{position:absolute;pointer-events:none;z-index:9;opacity:0;' +
         'font:800 13px/1 "Baloo 2",sans-serif;color:#fff;' +
@@ -146,7 +172,21 @@
 
     var warn = document.createElement('div');
     warn.id = 'fogWarn';
-    warn.style.backgroundImage = 'url(' + window.FOG_IMG_WARN + ')';
+    var wPlate = document.createElement('div');
+    wPlate.id = 'fogWarnPlate';
+    var wBang = document.createElement('div');
+    wBang.id = 'fogWarnBang';
+    wBang.textContent = '!';
+    var wPic = document.createElement('div');
+    wPic.id = 'fogWarnPic';
+    wPic.style.backgroundImage = 'url(' + window.FOG_IMG_WARN + ')';
+    wPlate.appendChild(wBang);
+    wPlate.appendChild(wPic);
+    var wTxt = document.createElement('div');
+    wTxt.id = 'fogWarnTxt';
+    wTxt.textContent = '안개!';
+    warn.appendChild(wPlate);
+    warn.appendChild(wTxt);
     app.appendChild(warn);
 
     var cnt = document.createElement('div');
@@ -196,17 +236,33 @@
       fog.style.maskImage = mask;
       cnt.style.left = (geo.left + geo.w / 2 - 12).toFixed(1) + 'px';
       cnt.style.bottom = (geo.bottom + geo.h + 2).toFixed(1) + 'px';
-      // 경고 표시: 새 경고와 같은 X, DOWN 만큼 아래
-      var ww = Math.max(34, appH * 0.22);
+      // ---- 경고 표시 자리 ----
+      //  받침판 폭은 화면 높이에 매되, 좁은 화면에서 가로를 다 먹지 않도록 잘라낸다.
+      var ww = Math.min(appW * 0.42, Math.max(96, appH * 0.58)) * WSCALE;
+      var plateH = ww * 0.485;
+      var fontPx = Math.max(11, ww * 0.117);
+      var bang = Math.max(18, ww * 0.203);
+      var wrapH = plateH + 2 + fontPx * 1.15;
       warn.style.width = ww.toFixed(1) + 'px';
-      warn.style.height = (ww * 0.62).toFixed(1) + 'px';
-      var wx = appW * 0.62, wy = appH * 0.20;
+      warn.style.gap = '2px';
+      wPlate.style.height = plateH.toFixed(1) + 'px';
+      wPic.style.width = (ww * 0.81).toFixed(1) + 'px';
+      wPic.style.height = (ww * 0.406).toFixed(1) + 'px';
+      wBang.style.width = bang.toFixed(1) + 'px';
+      wBang.style.height = bang.toFixed(1) + 'px';
+      wBang.style.left = (-bang * 0.35).toFixed(1) + 'px';
+      wBang.style.top = (-bang * 0.42).toFixed(1) + 'px';
+      wBang.style.fontSize = (bang * 0.65).toFixed(1) + 'px';
+      wBang.style.lineHeight = (bang - 5).toFixed(1) + 'px';
+      wTxt.style.fontSize = fontPx.toFixed(1) + 'px';
+      // 새 경고와 같은 X 에 두고 Y 만 내린다. 화면 밖으로 나가지 않게 양쪽 다 자른다.
+      var wx = appW * 0.62 - ww / 2, wy = appH * 0.20;
       if (crowW){
         var ar = app.getBoundingClientRect(), cr = crowW.getBoundingClientRect();
         if (cr.width){ wx = cr.left - ar.left + cr.width / 2 - ww / 2; wy = cr.top - ar.top; }
       }
-      warn.style.left = wx.toFixed(1) + 'px';
-      warn.style.top = Math.min(appH - ww * 0.62 - 2, wy + appH * DOWN).toFixed(1) + 'px';
+      warn.style.left = Math.min(appW - ww - 2, Math.max(2, wx)).toFixed(1) + 'px';
+      warn.style.top = Math.min(appH - wrapH - 2, Math.max(2, wy + appH * DOWN)).toFixed(1) + 'px';
       return true;
     }
     layout();

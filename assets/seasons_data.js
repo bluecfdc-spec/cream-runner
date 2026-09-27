@@ -20,6 +20,12 @@
 // ============================================================================
 window.SEASON_WINNERS = [
   {
+    season: '시즌 2',
+    period: '09.24 ~ 09.27',
+    walk:    { name: '신의손꾸락', score: 8837 },
+    endless: { name: '어렵다크림방구', score: 3120 }
+  },
+  {
     season: '시즌 1',
     period: '09.19 ~ 09.23',
     walk:    { name: '크림방구이모', score: 18121, clear: true },

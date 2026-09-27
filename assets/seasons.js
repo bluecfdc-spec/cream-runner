@@ -7,8 +7,11 @@
 //  - 일반 랜딩(index.html)에서는 walk 쪽만, 무한질주(endless.html)에서는 endless
 //    쪽만 보여준다. 어느 쪽인지는 window.ENDLESS_MODE 로 판단한다 (무한질주에서만
 //    endless_tune.js 가 true 로 켜둔다).
-//  - 처음에는 가장 최근 시즌 한 줄만 보이고, 그 아래 "지난 시즌 더보기"를 누르면
-//    나머지가 스크롤되는 칸으로 펼쳐진다. 시즌이 하나뿐이면 버튼이 아예 안 생긴다.
+//  - 최근 SHOWN_DEFAULT(3) 개 시즌은 아무것도 누르지 않아도 바로 보인다. 그보다 더
+//    오래된 시즌이 있을 때만 "지난 시즌 더보기" 버튼이 생기고, 누르면 나머지가
+//    스크롤되는 칸으로 펼쳐진다. 시즌이 3개 이하면 버튼이 아예 안 생긴다.
+//    (예전에는 최근 1개만 보이고 나머지가 전부 접혀 있었다. 시즌이 쌓여도 지난
+//     우승자가 한눈에 보이는 게 낫다고 판단해서 2026-09-28 에 3개로 늘렸다)
 //  - 스타일은 이 파일이 직접 심는다. style.css 와 index.html 의 <style> 을 건드리지
 //    않기 위해서다 (두 페이지가 같은 파일을 공유하므로 여기 한 곳에 두는 게 맞다).
 //  - 이름과 점수는 textContent 로만 넣는다. 목록에 무슨 문자가 들어와도 태그로
@@ -18,6 +21,9 @@
 // ============================================================================
 (function(){
   "use strict";
+
+  //  아무것도 누르지 않아도 보이는 시즌 수. 이 숫자만 바꾸면 기본 노출이 달라진다.
+  var SHOWN_DEFAULT = 3;
 
   var list = window.SEASON_WINNERS;
   if (!list || !list.length) return;
@@ -40,6 +46,10 @@
       (night ? '#8fa2d8' : '#8a6a2a') + ';}' +
     '#seasonPart .season-row{display:flex;align-items:baseline;gap:6px;' +
       'padding:3px 0;font-family:"Nunito",sans-serif;font-size:11.5px;font-weight:700;}' +
+    // 기본 노출이 여러 줄이 되었으니, 줄과 줄 사이에 아주 연한 구분선을 넣어
+    // 시즌이 바뀌는 지점이 눈에 들어오게 한다. 첫 줄에는 넣지 않는다.
+    '#seasonPart .season-row + .season-row{border-top:1px solid ' +
+      (night ? 'rgba(120,140,200,.16)' : 'rgba(31,43,61,.07)') + ';}' +
     '#seasonPart .season-when{flex:0 0 auto;font-size:10px;font-weight:700;opacity:.62;' +
       'white-space:nowrap;}' +
     '#seasonPart .season-who{flex:1 1 auto;text-align:right;min-width:0;' +
@@ -49,6 +59,9 @@
     '#seasonPart .season-rest{display:none;margin-top:2px;max-height:108px;' +
       'overflow-y:auto;-webkit-overflow-scrolling:touch;}' +
     '#seasonPart.open .season-rest{display:block;}' +
+    // 펼친 칸의 첫 줄도 위쪽 줄과 구분선으로 이어지게 한다.
+    '#seasonPart .season-rest .season-row:first-child{border-top:1px solid ' +
+      (night ? 'rgba(120,140,200,.16)' : 'rgba(31,43,61,.07)') + ';}' +
     '#seasonPart .season-more{display:block;width:100%;margin-top:6px;padding:5px 0;' +
       'border:0;border-radius:9px;cursor:pointer;-webkit-tap-highlight-color:transparent;' +
       'font-family:"Nunito",sans-serif;font-size:10.5px;font-weight:800;' +
@@ -90,21 +103,26 @@
   title.textContent = '👑 시즌 1위';
   part.appendChild(title);
 
-  part.appendChild(rowOf(list[0]));     // 가장 최근 시즌
+  //  최근 SHOWN_DEFAULT 개는 바로 보여준다 (시즌이 그보다 적으면 있는 만큼만).
+  var shown = Math.min(SHOWN_DEFAULT, list.length);
+  for (var i = 0; i < shown; i++) part.appendChild(rowOf(list[i]));
 
-  if (list.length > 1){
+  //  그보다 오래된 시즌이 남아 있을 때만 접힌 칸 + 더보기 버튼을 만든다.
+  if (list.length > shown){
+    var hidden = list.length - shown;
+
     var rest = document.createElement('div');
     rest.className = 'season-rest';
-    for (var i = 1; i < list.length; i++) rest.appendChild(rowOf(list[i]));
+    for (var j = shown; j < list.length; j++) rest.appendChild(rowOf(list[j]));
     part.appendChild(rest);
 
     var more = document.createElement('button');
     more.type = 'button';
     more.className = 'season-more';
-    more.textContent = '지난 시즌 더보기 (' + (list.length - 1) + ')';
+    more.textContent = '지난 시즌 더보기 (' + hidden + ')';
     more.addEventListener('click', function(){
       var open = part.classList.toggle('open');
-      more.textContent = open ? '접기' : '지난 시즌 더보기 (' + (list.length - 1) + ')';
+      more.textContent = open ? '접기' : '지난 시즌 더보기 (' + hidden + ')';
     });
     part.appendChild(more);
   }

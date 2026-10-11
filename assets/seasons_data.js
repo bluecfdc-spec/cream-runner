@@ -22,6 +22,12 @@
 // ============================================================================
 window.SEASON_WINNERS = [
   {
+    season: '시즌 4',
+    period: '10.05 ~ 10.11',
+    walk:    { name: '서란', score: 1223 },
+    endless: null
+  },
+  {
     season: '시즌 3',
     period: '09.28 ~ 10.04',
     walk:    { name: 'ㅈㅇㅈ', score: 1629 },
